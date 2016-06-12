@@ -59,7 +59,7 @@ filtdata = FilterData(data, params);
 % parameters in params.filtering, and re-run the filtering step.
 
 %% ----------------------------------------------------------------------------------
-% Preprocessing Step 2: Estimate noise covariance and whiten
+% Preprocessing Step 2: Estimate noise covariance and whiten data
 
 % Estimate and whiten the noise, assuming channel/time separability. This makes the
 % L2-norm portion of the CBP objective into a sum of squares, simplifying the

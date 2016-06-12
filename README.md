@@ -34,6 +34,7 @@ well our current ToDo file.
 * Conceptualization and design by Chaitanya Ekanadham and Eero Simoncelli.
 * Original matlab code written by Chaitanya Ekanadham, 12/26/2012.
 * Rewritten to use ECOS, and interface updated by Peter H. Li, Fall/Winter 2013.
+* Changes/adjustments made by Eero, Spring/Fall 2014.
 * Current version available at http://www.cns.nyu.edu/~lcv/software.php
 
 =====================================================================================
