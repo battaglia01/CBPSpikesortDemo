@@ -9,6 +9,8 @@
 % Run the setup function, which sets paths and prints warnings or errors if
 % there are issues detected (for example, mex/C files that need to be compiled
 % for your system).
+
+disp('***Running initial setup...'); %%@New
 spikesort_demo_setup(pwd());
 
 %% ----------------------------------------------------------------------------------
@@ -16,6 +18,8 @@ spikesort_demo_setup(pwd());
 
 % Load an example data set, including raw data, the timestep, and (optionally) ground
 % truth spike times.
+
+disp('***Step 0: Loading raw electrode data...'); %%@New
 
 % Simulated data example: Single electrode, from: Quiroga et. al., Neural
 % Computation, 16:1661-1687, 2004
@@ -31,8 +35,13 @@ params = load_default_parameters();
 % Fig 1a shows the raw data.  
 % Fig 2a plots the Fourier amplitude (averaged across channels).
 
+disp('***Done step 0. Press enter to continue...'); %%@New
+pause;
+
 %% ----------------------------------------------------------------------------------
 % Preprocessing Step 1: Temporal filtering
+
+disp('***Preprocessing Step 1: Temporal filtering'); %%@New
 
 % Remove low and high frequencies - purpose is to eliminate non-signal parts of the
 % frequency spectrum, and enable crude removal of segments containing spikes via
@@ -58,8 +67,14 @@ filtdata = FilterData(data, params);
 % reduce params.whitening.noise_threshold before proceeding, or modify the filtering
 % parameters in params.filtering, and re-run the filtering step.
 
+
+disp('***Done preprocessing step 1. Press enter to continue...'); %%@New
+pause;
+
 %% ----------------------------------------------------------------------------------
 % Preprocessing Step 2: Estimate noise covariance and whiten data
+
+disp('***Preprocessing Step 2: Estimate noise covariance and whiten data'); %%@New
 
 % Estimate and whiten the noise, assuming channel/time separability. This makes the
 % L2-norm portion of the CBP objective into a sum of squares, simplifying the
@@ -96,8 +111,13 @@ data_pp = WhitenNoise(filtdata, params);
 %   highlighted segments in green.  If lots of spikes are in noise regions, reduce
 %   params.whitening.noise_threshold
 
+disp('***Done preprocessing step 2. Press enter to continue...'); %%@New
+pause;
+
 %% ----------------------------------------------------------------------------------
 % Preprocessing Step 3: Estimate initial spike waveforms
+
+disp('***Preprocessing Step 3: Estimate initial spike waveforms'); %%@New
 
 % Initialize spike waveforms, using clustering:
 %  - collect data segments with L2-norm larger than params.clustering.spike_threshold
@@ -143,8 +163,13 @@ spike_times_cl = GetSpikeTimesFromAssignments(segment_centers_cl, assignments);
 % If you do this, you should go back and re-run starting from the whitening step,
 % since the waveform_len affects the identification of noise regions.
 
+disp('***Done preprocessing step 3! Press enter to continue...'); %%@New
+pause;
+
 %% -----------------------------------------------------------------------------------
 % CBP preprocessing
+
+disp('***CBP Preprocessing'); %%@New
 
 closeIfOpen(params.plotting.first_fig_num+[1,3]); % close Fourier and clustering figures
 
@@ -157,9 +182,13 @@ closeIfOpen(params.plotting.first_fig_num+[1,3]); % close Fourier and clustering
 [snippets, breaks, snippet_lens, snippet_centers, snippet_idx] = ...
     PartitionSignal(data_pp.data, params.partition);
 
+disp('***Done CBP Preprocessing. Press enter to continue...'); %%@New
+pause;
 
 %% ----------------------------------------------------------------------------------
 % CBP step 1: use CBP to estimate spike times
+
+disp('***CBP step 1: use CBP to estimate spike times'); %%@New
 
 % Turn off the Java progress bar if it causes errors
 % params.cbp.progress = false; 
@@ -176,8 +205,13 @@ end
 % Fig1: visually compare whitened data, recovered spikes
 % Fig2: residual histograms (raw, and cross-channel magnitudes) - compare to Fig3
 
+disp('***DONE CBP Step 1. Press enter to continue...'); %%@New
+pause;
+
 %% ----------------------------------------------------------------------------------
 % CBP step 2: Identify spikes by thresholding amplitudes of each cell
+
+disp('***CBP step 2: use CBP to estimate spike times'); %%@New
 
 % Calculate default thresholds.  This is done by fitting the amplitude
 % distribution (using a Gaussian kernel density estimator) and then choosing the
@@ -204,8 +238,14 @@ end
 % methods).  Click the "Use thresholds" button to proceed with the chosen values.
 % Click the "Revert" button to revert to the automatically-chosen default values.
 
+disp('***Done CBP step 2. Press enter to continue...'); %%@New
+pause;
+
+
 %% ----------------------------------------------------------------------------------
 % CBP Step 3: Re-estimate waveforms
+
+disp('***CBP step 3: Re-estimate waveforms'); %%@New
 
 % Compute waveforms using regression, with interpolation (defaults to cubic spline)
 nlrpoints = (params.general.waveform_len-1)/2;
@@ -245,10 +285,15 @@ end
 % has not yet converged.  Execute this and go back to re-run CBP:
 %     init_waveforms = waveforms;
 
+disp('***Done CBP step 3. Press enter to continue...'); %%@New
+pause;
+
 
 %% ----------------------------------------------------------------------------------
 % Post-analysis: Comparison of CBP to clustering results, and to ground truth (if
 % available)
+
+disp('***Post-analysis: Comparison of CBP to clustering results, and to ground truth (if available)'); %%@New
 
 %** indicate which cells match ground truth.
 
@@ -314,8 +359,13 @@ if isfield(ground_truth, 'true_spike_times') && isfield(ground_truth, 'true_spik
 
 end
 
+disp('***Done post-analysis. Press enter to continue...'); %%@New
+pause;
+
 %% ----------------------------------------------------------------------------------
 % Plot various snippet subpopulations
+disp('***Plot various snippet subpopulations');
+
 [est_matches true_matches] = GreedyMatchTimes(spike_times, ground_truth.true_sp, params.postproc.spike_location_slack);
 
 % Complete misses (missed even at 0 threshold)
@@ -348,9 +398,13 @@ ScrollSnippets(snippets, snippet_centers, ...
 ... %     'recons',       recon_snippets,     ...
     'true',         ground_truth.true_sp);
 
+disp('***Done plotting snippet subpopulations. Press enter to continue...'); %%@New
+pause;
 
 %% ----------------------------------------------------------------------------------
 % Visualize true spike assignments in PC-space
+
+disp('***Visualize true spike assignments in PC-space');
 
 if isfield(ground_truth, 'true_spike_class') && isfield(ground_truth, 'true_spike_times')
     cluster_pars = params.clustering;
@@ -387,9 +441,18 @@ end
 %    with separate colors (i.e. waveforms in Fig 7 should all have distinct
 %    shapes).
 
+disp('***Done visualizing true spike assignments in PC space. Press enter to continue...'); %%@New
+pause;
+
 %% ----------------------------------------------------------------------------------
 % Get greedy spike matches and plot RoC-style
+
+disp('***Get greedy spike matches and plot RoC-style');
+
 % NB: Much faster if mex greedymatchtimes.c is compiled
 %*** show chosen threshold in top plot
 %*** also show log # spikes found?
 PlotCBPROC(spike_times, spike_amps, ground_truth.true_sp, params.postproc.spike_location_slack);
+
+disp('***Done plotting greedy spike matches. Press enter to continue...'); %%@New
+pause;
