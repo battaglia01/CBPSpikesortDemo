@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 function InitStage(p)
 global params dataobj nextstage;
 % Run the setup function, which sets paths and prints warnings or errors if
@@ -12,4 +13,21 @@ SpikesortDemoSetup;
 FillInDefaultParameters;
 
 fprintf('***Done initialization.\n\n');
+=======
+function InitStage(p)
+global params dataobj nextstage;
+% Run the setup function, which sets paths and prints warnings or errors if
+% there are issues detected (for example, mex/C files that need to be compiled
+% for your system).
+
+fprintf('***Running initial setup...\n');
+
+clear nextstage;
+
+SpikesortDemoSetup;
+
+FillInDefaultParameters;
+
+fprintf('***Done initialization.\n\n');
+>>>>>>> 61a3b0d36e8cdf1210fb7f305aba3d99880c1cdc
 CBPNext('RawDataStage');
