@@ -12,7 +12,8 @@ global params dataobj;
 
 fprintf('***CBP Step 1: Initial Setup\n'); %%@New
 
-CBPinfo = [];
+%set up CBPinfo, init_waveforms
+CBPinfo = dataobj.CBPinfo;
 
 [CBPinfo.snippets, CBPinfo.breaks, CBPinfo.snippet_lens, ...
     CBPinfo.snippet_centers, CBPinfo.snippet_idx] = ...

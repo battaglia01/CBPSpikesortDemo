@@ -29,7 +29,7 @@ for n=1:length(dataobj.CBPinfo.spike_times)
         sampbegin = params.sonify.time_stretch*round(currspikes(m));
         if(sampbegin+fs*params.sonify.note_duration < length(y))
             %waveforms
-            mono_waveform=sum(dataobj.CBPinfo.waveforms{n},2);
+            mono_waveform=sum(dataobj.CBPinfo.final_waveforms{n},2);
             sound_snippet = curramps(m).*mono_waveform;
             y(sampbegin:sampbegin+length(mono_waveform)-1) = y(sampbegin:sampbegin+length(mono_waveform)-1) + sound_snippet;
             

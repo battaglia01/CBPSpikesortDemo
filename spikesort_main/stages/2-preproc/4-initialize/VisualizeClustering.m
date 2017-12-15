@@ -21,7 +21,7 @@ for i=1:N
   distances(spikeIinds) = sqrt(sum((XProj(spikeIinds,:)'-repmat(projCentroids(:,i),1,counts(i))).^2))';
 end
 
-AddCalibrationTab('Clusters');
+AddCalibrationTab('Initial Waveform PCs');
 cla('reset');
 hold on;
 
@@ -37,16 +37,18 @@ for i=1:N     %plot outliers second
          '.', 'Color', 0.5*colors(i, :)+0.5*[1 1 1], ...
          'Marker', marker, 'MarkerSize', 8);
 end
+centhandles = [];
 for i=1:N
-  plot(projCentroids(1,i), projCentroids(2,i), 'o', 'MarkerSize', 9, 'LineWidth', 2,...
-       'MarkerEdgeColor', 'black', 'MarkerFaceColor', colors(i,:));
+  zsc = norm(projCentroids(:,i));
+  centhandles(i) = plot(projCentroids(1,i), projCentroids(2,i), 'o', 'MarkerSize', 9, 'LineWidth', 2,...
+       'MarkerEdgeColor', 'black', 'MarkerFaceColor', colors(i,:), 'DisplayName', ['cell ' num2str(i) ', z-score=' num2str(zsc)]);
 end
 xl = get(gca, 'XLim'); yl = get(gca, 'YLim');
 plot([0 0], yl, '-', 'Color', 0.8 .* [1 1 1]);
 plot(xl, [0 0], '-', 'Color', 0.8 .* [1 1 1]);
 th=linspace(0, 2*pi, 64);
-nh= plot(threshold*sin(th),threshold*cos(th), 'k', 'LineWidth', 2);
-legend(nh,sprintf('spike threshold = %.1f',threshold));
+nh= plot(threshold*sin(th),threshold*cos(th), 'k', 'LineWidth', 2, 'DisplayName', sprintf('spike threshold = %.1f',threshold));
+legend([nh centhandles]);
 axis equal
 hold off
 font_size = 12;
@@ -102,30 +104,6 @@ ip = centroids'*centroids;
 dist2 = repmat(diag(ip),1,size(ip,2)) - 2*ip + repmat(diag(ip)',size(ip,1),1) +...
         diag(diag(ip));
 fprintf(1,'Distances between waveforms (diagonal is norm): \n');
-disp(sqrt(dist2/size(centroids,1)))
-%disp(sqrt(dist2))
+disp(sqrt(dist2/size(centroids,1)));
 
 return
-
-%% Subroutines
-
-% compute expected errors for detecting signal of given
-% amplitude and prior probability, assuming univariate Gaussian noise.
-function [err, miss, fa] = sdtErrorRate(amp, prior)
-  thresh = (log(1-prior)-log(prior) + amp^2/2)/amp;
-  miss = prior * 0.5*erfc(-(thresh-amp) / sqrt(2));
-  hit = prior - miss;
-  fa = (1-prior) * (1 - 0.5*erfc(-thresh / sqrt(2)));
-  err = 0.5*(miss/(hit + miss) + fa/(hit + fa))
-  return
-
-if(0)
-  % simulation test:
-  N=1000;
-  ns = randn(round(N/prior - N), 1);
-  sig = amp+randn(N, 1);
-  thresh =  (log(1-prior)-log(prior) + amp^2/2)/amp;
-  miss = sum(sig < thresh);
-  fa = sum(ns > thresh);
-  err = 0.5*(miss/N + fa/(sum(sig>=thresh)+fa))
-end

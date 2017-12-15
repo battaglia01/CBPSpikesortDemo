@@ -84,6 +84,8 @@ for i = 1:n
         lh.setColor('black');
         lch = get(lh, 'Children');
         set(lch(1:2), 'HitTest', 'off');
+        set(lh, 'HitTest', 'on');
+        set(gca, 'HitTest', 'off');
         lh.addNewPositionCallback(@(pos) updateThresh(pos(1), i, f));
     else
         plot(thresh(i) * [1 1], yl, 'Color', cols(i,:), 'LineWidth', 2);

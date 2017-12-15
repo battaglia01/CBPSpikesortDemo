@@ -15,40 +15,46 @@ CBPinfo = dataobj.CBPinfo;
 
 % Compute waveforms using regression, with interpolation (defaults to cubic spline)
 nlrpoints = (params.rawdata.waveform_len-1)/2;
-CBPinfo.waveforms = cell(size(CBPinfo.spike_times));
+CBPinfo.final_waveforms = cell(size(CBPinfo.spike_times));
 for i = 1:numel(CBPinfo.spike_times)
     %%Is this why? You can only increase the threshold, not lower it
     sts = CBPinfo.spike_times{i}(CBPinfo.spike_amps{i} > CBPinfo.amp_thresholds(i)) - 1;
-    CBPinfo.waveforms{i} = CalcSTA(dataobj.whitening.data', sts, [-nlrpoints nlrpoints]);
+    CBPinfo.final_waveforms{i} = CalcSTA(dataobj.whitening.data', sts, [-nlrpoints nlrpoints]);
 end
 
 %%@ Move this
 % Compare updated waveforms to initial estimates
 %*** Hide this stuff somewhere else!
 if (params.general.calibration_mode)
-  num_waveforms = length(CBPinfo.waveforms);
+  num_waveforms = length(CBPinfo.final_waveforms);
   cols= hsv(num_waveforms);
   nchan=size(dataobj.whitening.data,1);
     AddCalibrationTab('Waveform Review');
     nc = ceil(sqrt(num_waveforms));
     nr = ceil(num_waveforms / nc);
     chSpace = 13; %**magic number, also in VisualizeClustering
-    spacer = ones(size(CBPinfo.waveforms{1},1), 1) * ([1:nchan]-1)*chSpace;
+    spacer = ones(size(CBPinfo.final_waveforms{1},1), 1) * ([1:nchan]-1)*chSpace;
     for i = 1:num_waveforms
         subplot(nr, nc, i); cla;
-        inith = plot(reshape(dataobj.clustering.init_waveforms{i},[],nchan)+spacer, 'k');
+        inith = plot(reshape(dataobj.CBPinfo.init_waveforms{i},[],nchan)+spacer, 'k');
         hold on
-        finalh = plot(reshape(CBPinfo.waveforms{i},[],nchan)+spacer, 'Color', cols(i,:));
+        finalh = plot(reshape(CBPinfo.final_waveforms{i},[],nchan)+spacer, 'Color', cols(i,:));
         hold off
         set(gca,'Xlim',[1, size(spacer,1)]);
-        err = norm(dataobj.clustering.init_waveforms{i} - CBPinfo.waveforms{i})/...
-              norm(CBPinfo.waveforms{i});
+        err = norm(dataobj.CBPinfo.init_waveforms{i} - CBPinfo.final_waveforms{i})/...
+              norm(CBPinfo.final_waveforms{i});
         title(sprintf('cell %d, change=%.0f%%', i, 100*err))
         legend([inith(1) finalh(1)], {'Initial', 'New'});
     end
 end
 
+CBPinfo.first_pass = false;
 dataobj.CBPinfo = CBPinfo;
 
 fprintf('***Done CBP step 4.\n')
-CBPNext('SonificationStage');
+CBPNext('CBPIterate');
+
+fprintf('\nTo do another iteration of CBP, type\n');
+fprintf('    CBPIterate or CBPNext');
+fprintf('\nTo finish CBP and move onto post-analysis, type\n');
+fprintf('    SonificationStage\n');

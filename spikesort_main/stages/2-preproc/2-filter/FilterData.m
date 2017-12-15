@@ -87,8 +87,8 @@ else
             fprintf('Bandpass fir1 filtering with cutoff %s Hz\n', ...
                 mat2str(filt_pars.freq));
     end
-    coeffs = {fb fa};
 end
+coeffs = {fb fa};
 
 data = zeros(size(raw_data));
 parfor chan = 1 : size(raw_data, 1)

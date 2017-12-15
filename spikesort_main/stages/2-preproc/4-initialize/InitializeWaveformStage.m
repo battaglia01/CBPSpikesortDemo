@@ -38,12 +38,10 @@ clustering = [];
 
 [clustering.centroids, clustering.assignments, ...
     clustering.X, clustering.XProj, clustering.PCs, ...
-    clustering.segment_centers_cl] = ...
+    clustering.segment_centers_cl, clustering.init_waveforms, ...
+    clustering.spike_times_cl] = ...
     EstimateInitialWaveforms(dataobj.whitening, params);
 
-clustering.init_waveforms = ...
-    waveformMat2Cell(clustering.centroids, params.rawdata.waveform_len, ...
-    dataobj.whitening.nchan, params.clustering.num_waveforms);
 
 if (params.general.calibration_mode)
     VisualizeClustering(clustering.XProj, ...
@@ -52,13 +50,11 @@ if (params.general.calibration_mode)
         params.clustering.spike_threshold);
 end
 
-% For later comparisons, also compute spike times corresponding to the segments
-% assigned to each cluster:
-clustering.spike_times_cl = GetSpikeTimesFromAssignments( ...
-    clustering.segment_centers_cl, clustering.assignments);
-
 dataobj.clustering = clustering;
-parout = params;
+dataobj.CBPinfo.first_pass = true;
 
-fprintf('***Done preprocessing step 4!\n\n');
-CBPNext('CBPSetupStage');
+fprintf('***Done preprocessing step 4!\n');
+CBPNext('CBPIterate');
+fprintf('\nTo adjust cluster estimates, type\n');
+fprintf('    MergeClusters(waveform_inds)\n')
+fprintf('    SplitCluster(waveform_ind, num_new_waveforms)\n\n');

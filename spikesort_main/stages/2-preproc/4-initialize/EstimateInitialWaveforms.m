@@ -1,52 +1,56 @@
-function [centroids, assignments, X, XProj, PCs, peak_idx] = ...
-    EstimateInitialWaveforms(datain, params)
+function [centroids, assignments, X, XProj, PCs, peak_idx,...
+         init_waveforms, spike_times_cl] = EstimateInitialWaveforms(whitening, params)
 
 % Use PCA + K-means clustering to get an intial estimate of the waveform
 % shapes. Also used to benchmark performance of clustering for spike
 % sorting.
 %
 
-% TODO: Describe params
+params.clustering.align_mode = whitening.averaging_method; %%@ Make averaging_method optional
 
-data = datain.data;
-pars = params.clustering;
-gen_pars = params.general;
-pars.align_mode = datain.averaging_method; %%@ Make averaging_method optional
-
-if isempty(pars.window_len)
-    pars.window_len = 2*floor(params.rawdata.waveform_len/2)+1;
+if isempty(params.clustering.window_len)
+    params.clustering.window_len = 2*floor(params.rawdata.waveform_len/2)+1;
 end
 
-if isempty(pars.peak_len)
-    pars.peak_len = floor(pars.window_len / 2);
+if isempty(params.clustering.peak_len)
+    params.clustering.peak_len = floor(params.clustering.window_len / 2);
 end
 
 
 % Root-mean-squared (across channels) of data.
-data_rms = sqrt(sum(data.^ 2, 1));
+data_rms = sqrt(sum(whitening.data.^ 2, 1));
 
 % Clustering parameters
 %threshold = 4 * median(data_rms) ./ 0.6745; % robust
 %threshold = 4 * std(data_rms);  %**EPS: Don't know where this came from
-threshold = pars.spike_threshold;
+threshold = params.clustering.spike_threshold;
 
 % Identify time indices of candidate peaks.
-peak_idx = FindPeaks(data_rms(:), threshold, pars);
+peak_idx = FindPeaks(data_rms(:), threshold, params.clustering);
 fprintf('Found %d segments exceeding threshold of %.1f.\n', length(peak_idx),threshold);
 
 % Construct a matrix with these windows, upsampled and aligned.
-X = ConstructSnippetMatrix(data, peak_idx, pars);
+X = ConstructSnippetMatrix(whitening.data, peak_idx, params.clustering);
 
-[PCs, XProj] = TruncatePCs(X, pars.percent_variance);
+[PCs, XProj] = TruncatePCs(X, params.clustering.percent_variance);
 
 % Do K-means clustering
-assignments = DoKMeans(XProj, pars.num_waveforms);
+%%@WTF, is this right? on the PCAs?
+assignments = DoKMeans(XProj, params.clustering.num_waveforms);
 centroids = GetCentroids(X, assignments);
 
 % Put them in a canonical order (according to increasing 2norm);
 [centroids, clperm] = OrderWaveformsByNorm(centroids);
 assignments = PermuteAssignments(assignments, clperm);
 
+init_waveforms = ...
+    waveformMat2Cell(centroids, params.rawdata.waveform_len, ...
+    whitening.nchan, params.clustering.num_waveforms);
+
+% For later comparisons, also compute spike times corresponding to the segments
+% assigned to each cluster:
+spike_times_cl = GetSpikeTimesFromAssignments( ...
+    peak_idx, assignments);
 
 %% Subroutines
 
@@ -98,35 +102,3 @@ fprintf('%d/%d PCs account for %.2f percent variance\n', ...
 PC = PCs(:, 1 : npcs);
 % Project on to PCs
 XProj = Xproj(:, 1 : npcs);
-
-
-% Do K-means clustering on the PC representation of the snippets
-function assignments = DoKMeans(Xproj, nwaveforms)
-fprintf('Clustering using k-means...\n');
-
-% Number of times to try with random initialization
-num_reps = 25;
-
-% Use default K-means settings for now.
-distance_mode = 'sqEuclidean';
-start_mode = 'sample'; % centroid initialization = random sample
-empty_mode = 'error'; % throw error when clusters are empty
-opts = statset('MaxIter', 1e3);
-% Run K-means, from stat toolbox
-assignments = kmeans(Xproj, nwaveforms,...
-    'Replicates', num_reps, ...
-    'Distance', distance_mode, ...
-    'Start', start_mode, ...
-    'EmptyAction', empty_mode, ...
-    'Options', opts);
-fprintf('Done.\n');
-
-
-% Get centroids from the assignments
-function centroids = GetCentroids(X, assignments)
-N = max(assignments);
-centroids = zeros(size(X, 1), N);
-for i = 1 : N
-    idx = (assignments == i);
-    centroids(:, i) = mean(X(:, idx), 2);
-end

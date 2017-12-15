@@ -1,6 +1,0 @@
-function [waveformCell] = waveformMat2Cell(mat, len, nchan, nwfs)
-
-waveformCell = mat2cell(reshape(mat, len, nchan*nwfs), ...
-			len, ...
-			nchan*ones(1,nwfs));
-
