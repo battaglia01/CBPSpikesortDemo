@@ -8,7 +8,7 @@ ind_mask = (dataobj.clustering.assignments == waveform_ind);
 inds_to_change = dataobj.clustering.assignments > waveform_ind;
 dataobj.clustering.assignments(inds_to_change) = ...
     dataobj.clustering.assignments(inds_to_change) + num_new_waveforms - 1;
-    
+
 %change num_waveforms params
 params.clustering.num_waveforms = ...
        params.clustering.num_waveforms + num_new_waveforms - 1;
@@ -39,9 +39,5 @@ spike_times_cl = GetSpikeTimesFromAssignments( ...
     dataobj.clustering.segment_centers_cl, dataobj.clustering.assignments);
 
 if (params.general.calibration_mode)
-    VisualizeClustering(dataobj.clustering.XProj, ...
-        dataobj.clustering.assignments, dataobj.clustering.X, ...
-        dataobj.whitening.nchan, ...
-        params.clustering.spike_threshold);
+    InitializeWaveformPlot;
 end
-                              

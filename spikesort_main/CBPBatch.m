@@ -19,7 +19,7 @@ InitializeWaveformStage;
 %%CBP
 CBPSetupStage;
 SpikeTimingStage;
-MatchWaveformStage;
+AmplitudeThresholdStage;
 WaveformReestimationStage;
 
 %%%%Stop here for now%%%%%

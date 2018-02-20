@@ -1,8 +1,16 @@
-function dataout = PlotFilteredData(datain)
-global params dataobj;
-% Plot filtered data, Fourier amplitude, and histogram of magnitudes
+function FilterPlot(disable)
+    global params dataobj;
+    
+    if nargin == 1 & ~disable
+        DisableCalibrationTab('FilteredData');
+        return;
+    end
 
-    data = datain.data;
+    filtering = dataobj.filtering;
+
+    % Plot filtered data, Fourier amplitude, and histogram of magnitudes
+
+    data = filtering.data;
 
     % copied from WhitenNoise: %%@ Mike's comment - oh no, duplicated code?!
     %%@ Again hard-coded RMS
@@ -30,43 +38,43 @@ global params dataobj;
                        ((inds(1) < zonesR) & (zonesR < inds(end))));
 
     if(~isempty(visibleInds))
-        nh=patch(datain.dt*[[1;1]*zonesL(visibleInds); [1;1]*zonesR(visibleInds)],...
+        nh=patch(filtering.dt*[[1;1]*zonesL(visibleInds); [1;1]*zonesR(visibleInds)],...
              (mxOffset+thresh)*[-1;1;1;-1]*ones(1,length(visibleInds)), noiseCol,...
              'EdgeColor', noiseCol);
     end
 
     hold on;
-    plot([inds(1), inds(end)]*datain.dt, [0 0], 'k');
-    dh = plot((inds-1)*datain.dt, datain.data(:,inds)' + plotChannelOffset);
+    plot([inds(1), inds(end)]*filtering.dt, [0 0], 'k');
+    dh = plot((inds-1)*filtering.dt, filtering.data(:,inds)' + plotChannelOffset);
     hold off;
 
-    set(gca, 'Xlim', ([inds(1),inds(end)]-1)*datain.dt);
+    set(gca, 'Xlim', ([inds(1),inds(end)]-1)*filtering.dt);
     %  set(gca,'Ylim',[-1 1]);
     legend('noise regions (to be whitened)');  title('Filtered data');
 
     %Plot frequency domain
 
-    subplot(2,2,2); cla;
-    maxDFTind = floor(datain.nsamples/2);
-    dftMag = abs(fft(datain.data,[],2));
+    subplot(2,2,3); cla;
+    maxDFTind = floor(filtering.nsamples/2);
+    dftMag = abs(fft(filtering.data,[],2));
     if (nchan > 1.5)
         dftMag = sqrt(sum(dftMag.^2)); %%@ MUST CHANGE THIS TOO
     end;
-    plot(([1:maxDFTind]-1)/(maxDFTind*datain.dt*2), dftMag(1:maxDFTind));
+    plot(([1:maxDFTind]-1)/(maxDFTind*filtering.dt*2), dftMag(1:maxDFTind));
     set(gca,'Yscale','log'); axis tight;
     xlabel('frequency (Hz)'); ylabel('amplitude');
     title('Fourier amplitude, filtered data');
 
     %Plot histogram
-    subplot(2,2,3); cla;
+    subplot(2,2,2); cla;
 
     sd = sqrt(sum(cellfun(@(c) sum(dataMag(c).^2), noiseZones)) / ...
               (nchan*sum(cellfun(@(c) length(c), noiseZones))));
-    mx = max(abs(datain.data(:)));
-    nbins = min(100, 2*size(datain.data,2)^(1/3)); % Rice rule for histogram binsizes
+    mx = max(abs(filtering.data(:)));
+    nbins = min(100, 2*size(filtering.data,2)^(1/3)); % Rice rule for histogram binsizes
     % nbins = size(datain.data,2)^(1/3) / (2*iqr(datain.data(:))); % Freedman–Diaconis rule for histogram binsize
     X=linspace(-mx,mx,nbins);
-    N=hist(datain.data',X);
+    N=hist(filtering.data',X);
 
     plot(X,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
     hold on;

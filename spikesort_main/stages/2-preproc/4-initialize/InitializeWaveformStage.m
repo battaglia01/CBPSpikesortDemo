@@ -31,6 +31,7 @@
 
 function InitializeWaveformStage
 global params dataobj;
+UpdateStage(@InitializeWaveformStage);
 
 fprintf('***Preprocessing Step 4: Estimate initial spike waveforms\n'); %%@New
 
@@ -42,19 +43,17 @@ clustering = [];
     clustering.spike_times_cl] = ...
     EstimateInitialWaveforms(dataobj.whitening, params);
 
-
-if (params.general.calibration_mode)
-    VisualizeClustering(clustering.XProj, ...
-        clustering.assignments, clustering.X, ...
-        dataobj.whitening.nchan, ...
-        params.clustering.spike_threshold);
-end
-
 dataobj.clustering = clustering;
 dataobj.CBPinfo.first_pass = true;
 
+if (params.general.calibration_mode)
+    InitializeWaveformPlot;
+end
+
+
 fprintf('***Done preprocessing step 4!\n');
-CBPNext('CBPIterate');
+StageInstructions;
+
 fprintf('\nTo adjust cluster estimates, type\n');
 fprintf('    MergeClusters(waveform_inds)\n')
 fprintf('    SplitCluster(waveform_ind, num_new_waveforms)\n\n');

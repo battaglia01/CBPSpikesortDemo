@@ -14,6 +14,8 @@
 
 function SonificationStage
 global params dataobj;
+global oldstage;
+oldstage = 'SonificationStage';
 
 fprintf('***Postprocessing Step 1: Sonification\n'); %%@New
 

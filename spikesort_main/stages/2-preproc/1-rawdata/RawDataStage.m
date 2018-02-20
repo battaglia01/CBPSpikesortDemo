@@ -8,11 +8,17 @@
 %   Fig 2a plots the Fourier amplitude (averaged across channels).
 
 function RawDataStage
-global params dataobj;
+global params dataobj
+UpdateStage(@RawDataStage);
 
 fprintf('***Preprocessing step 1: Loading raw electrode data...\n');
 
 try
+    fprintf('Filename detected in params.general.filename:\n');
+    fprintf('  params.general.filename = ''%s''\n\n', params.general.filename);
+    fprintf('* If this is an error, change params.general.filename.\n');
+    fprintf('* If this is from an older, stale version of params, remember\n');
+    fprintf('  that you need to type `clear global params` to reset.\n');
     datasetName = params.general.filename;
 catch
     fprintf('No filename detected in params.general.filename\n');
@@ -31,11 +37,14 @@ catch
     % hippocampus, from: Harris et. al., J. Neurophysiology, 84:401-414, 2000
     % datasetName = 'Harris1';
 end
-
 dataobj.rawdata = LoadRawData(datasetName);
+
+%put filename in data obj
+dataobj.filename = params.general.filename;
+
 if (params.general.calibration_mode)
-    PlotRawData(dataobj.rawdata);
+    RawDataPlot;
 end
 
-fprintf('***Done preprocessing step 1.\n\n');
-CBPNext('FilterStage');
+fprintf('***Done preprocessing step 1.\n');
+StageInstructions;

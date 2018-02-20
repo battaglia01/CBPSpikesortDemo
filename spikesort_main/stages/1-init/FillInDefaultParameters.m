@@ -79,6 +79,7 @@ setparamifndef('params.cbp_outer.plot_every','1');                    % plotting
 setparamifndef('params.amplitude.kdepoints','32');
 setparamifndef('params.amplitude.kderange','[0.3 1.0]');
 setparamifndef('params.amplitude.kdewidth','5');
+setparamifndef('params.amplitude.ampbins','60');    %moved from AmplitudeThresholdGUI.m
 
 % Acceptable slack for considering two spikes a match.  In units of samples.
 % Currently two-sided, but this should probably be changed.

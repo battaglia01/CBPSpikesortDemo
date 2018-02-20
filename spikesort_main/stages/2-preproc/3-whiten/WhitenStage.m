@@ -37,16 +37,17 @@
 
 function WhitenStage
 global params dataobj;
+UpdateStage(@WhitenStage);
 
 fprintf('***Preprocessing Step 3: Estimate noise covariance and whiten data\n');
 
 dataobj.whitening = WhitenNoise(dataobj.filtering);
 
 if (params.general.calibration_mode)
-    PlotWhitenedData(dataobj.whitening);
+    WhitenPlot;
 end
 
 parout = params;
 
 fprintf('***Done preprocessing step 3.\n\n');
-CBPNext('InitializeWaveformStage');
+StageInstructions;

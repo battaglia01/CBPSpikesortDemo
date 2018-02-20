@@ -16,8 +16,6 @@ function [spike_times, spike_mags] = ...
 %
 % threshold : (optional) threshold on spike magnitudes (default = 0)
 
-
-
 if (length(spike_times_cell) ~= length(snippet_centers))
     error('cell array must have as many elements as snippet centers!');
 end

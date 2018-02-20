@@ -26,14 +26,15 @@
 
 function FilterStage
 global params dataobj;
+UpdateStage(@FilterStage);
 
 fprintf('***Preprocessing Step 2: Temporal filtering\n'); %%@New
 
 dataobj.filtering = FilterData(dataobj.rawdata);
 
 if (params.general.calibration_mode)
-    PlotFilteredData(dataobj.filtering);
+    FilterPlot;
 end
 
 fprintf('***Done preprocessing step 2.');
-CBPNext('WhitenStage');
+StageInstructions;
