@@ -1,5 +1,9 @@
 function CBPNext
-    global stages currstageind;
-    nextstage = stages{currstageind}{2};
-    nextstage();
+    global cbpglobals;
+    if isempty(cbpglobals.currstageind)
+        InitStage;
+    else
+        nextstage = cbpglobals.stages{cbpglobals.currstageind}.nextfun;
+        nextstage();
+    end
 end

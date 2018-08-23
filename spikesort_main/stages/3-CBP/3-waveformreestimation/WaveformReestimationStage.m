@@ -23,6 +23,9 @@ for i = 1:numel(CBPinfo.spike_times)
     CBPinfo.final_waveforms{i} = CalcSTA(dataobj.whitening.data', sts, [-nlrpoints nlrpoints]);
 end
 
+CBPinfo.spike_traces_final = CreateSpikeTraces(CBPinfo.spike_times, CBPinfo.spike_amps, ...
+        CBPinfo.final_waveforms, dataobj.whitening.nsamples, dataobj.whitening.nchan);
+
 CBPinfo.first_pass = false;
 dataobj.CBPinfo = CBPinfo;
 

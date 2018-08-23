@@ -1,4 +1,5 @@
 function PlotCBPROC(est_times, est_amps, true_times, location_slack)
+global params;
 
 % Actually some of the true_matches cells may be empty, but don't sweat this.
 ntruecells = length(true_times);
@@ -51,7 +52,9 @@ legend(ax(1), [hfps(cells_plotted) hmiss(cells_plotted)], [fp_leg miss_leg]);
 ntrue = length(cell2mat(true_times));
 nauto = 0;
 for i = 1 : length(est_amps)
-    autothresh(i) = ComputeKDEThreshold(est_amps{i}, 32, [0.3 1.1], 5);
+    %%@ - bug fixed below- mike
+    %autothresh(i) = ComputeKDEThreshold(est_amps{i}, 32, [0.3 1.1], 5);
+    autothresh(i) = ComputeKDEThreshold(est_amps{i}, params.amplitude);
     if i > length(true_times) || isempty(true_times{i}), continue; end
     nauto = nauto + sum(est_amps{i} > autothresh(i));
 end

@@ -10,16 +10,22 @@ global params dataobj;
 UpdateStage(@SpikeTimingStage);
 
 fprintf('***CBP Step 1: use CBP to estimate spike times\n'); %%@New
-fprintf('***Seeding new initial waveforms with previous final waveforms...\n');
 
 CBPinfo = dataobj.CBPinfo;
 
 %set up CBPinfo, init_waveforms
 if CBPinfo.first_pass
+    fprintf('***Using initial estimates as CBP starting point...\n');
     CBPinfo.init_waveforms = dataobj.clustering.init_waveforms;
-else
-    CBPinfo.init_waveforms = dataobj.CBPinfo.final_waveforms;
     CBPinfo.final_waveforms = {};
+else
+    fprintf('***Seeding new initial waveforms with previous final waveforms...\n');
+    %check to make sure we haven't already shifted final_waveforms
+    %into init_waveforms
+    if ~isempty(CBPinfo.final_waveforms)
+        CBPinfo.init_waveforms = dataobj.CBPinfo.final_waveforms;
+        CBPinfo.final_waveforms = {};    
+    end
 end
 
 %Partition the signal into snippets
@@ -28,16 +34,13 @@ end
     PartitionSignal(dataobj.whitening.data, params.partition);
 
 %Get spike times
-[CBPinfo.spike_times, CBPinfo.spike_amps, CBPinfo.recon_snippets] = ...
+[CBPinfo.spike_times, CBPinfo.spike_times_ms, CBPinfo.spike_amps, CBPinfo.recon_snippets] = ...
     SpikesortCBP(CBPinfo.snippets, CBPinfo.snippet_centers, ...
-        CBPinfo.init_waveforms, params.cbp_outer, params.cbp);
+        CBPinfo.init_waveforms, params.cbp_outer, params.cbp, dataobj.whitening.dt);
 
-%convert to ms
-CBPinfo.spike_times_ms = {};
-for n=1:length(CBPinfo.spike_times)
-    CBPinfo.spike_times_ms{n} = CBPinfo.spike_times{n} * dataobj.whitening.dt;
-end
-CBPinfo.spike_times_ms = CBPinfo.spike_times_ms';
+%Create spike traces
+CBPinfo.spike_traces_init = CreateSpikeTraces(CBPinfo.spike_times, CBPinfo.spike_amps, ...
+        CBPinfo.init_waveforms, dataobj.whitening.nsamples, dataobj.whitening.nchan);
 
 dataobj.CBPinfo = CBPinfo;
 

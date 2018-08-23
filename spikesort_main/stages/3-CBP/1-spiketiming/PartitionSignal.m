@@ -1,5 +1,5 @@
-function [snippets, breaks, snippet_lens, snippet_centers, IDX] = PartitionSignal(signal, pars)
-%function [snippets, breaks, snippet_lens, snippet_centers, IDX] = PartitionSignal(signal, pars)
+function [snippets, breaks, snippet_lens, snippet_centers, IDX] = ...
+    PartitionSignal(signal, pars)
 %
 % Splits a signal into multiple "snippets" containing significant activity.
 % Also returns "dead zones" from between the snippets.
@@ -107,7 +107,7 @@ breaks_idx = breaks_idx.PixelIdxList;
 breaks = cellfun(@(i) signal(:,i)', breaks_idx, 'UniformOutput', false);
 
 
-fprintf('Partitioned signal into %d chunks\n', length(snippets));
+fprintf('Partitioned signal into %d snippets\n', length(snippets));
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

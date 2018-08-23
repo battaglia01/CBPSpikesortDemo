@@ -6,15 +6,16 @@ setparamifndef('params.general.calibration_mode', 'true');
 
 setparamifndef('params.plotting.calibration_figure','2147483646');    % magic number for calibration plotting
 setparamifndef('params.plotting.verify_figure','2147483645');         % magic number for calibration plotting
+setparamifndef('params.plotting.data_plot_times','[]');                % indices of timeseries to display in diagnostic figures.
+                                                                      % ^^ [] means to use halfway point. set in plot_raw_data
 
-setparamifndef('params.rawdata.waveform_len','81');                   % number of samples in spike waveform.  MUST BE ODD.
+setparamifndef('params.rawdata.waveform_len','81');                   % number of samples in spike waveform. MUST BE ODD.
 setparamifndef('params.rawdata.min_plot_dur','3000');                 % min plot duration
-setparamifndef('params.rawdata.data_plot_inds','[]');                 % indices of timeseries to display in diagnostic figures: set in plot_raw_data
 
 setparamifndef('params.filtering.freq','[100 5000]');                 % Low/high cutoff in Hz, empty default means no filtering
 setparamifndef('params.filtering.type','''fir1''');                   % "fir1", "butter"
 setparamifndef('params.filtering.pad','5e3');                         % padding (in samples) to avoid border effects
-setparamifndef('params.filtering.order','1000');                         % See Harris 2000
+setparamifndef('params.filtering.order','1000');                      % See Harris 2000
 
 setparamifndef('params.whitening.noise_threshold','0.15');            % threshold, rel. to max amplitude of 1, used to detect and remove spikes, estimating
                                                                       % covariance of the remaining noise
@@ -84,13 +85,6 @@ setparamifndef('params.amplitude.ampbins','60');    %moved from AmplitudeThresho
 % Acceptable slack for considering two spikes a match.  In units of samples.
 % Currently two-sided, but this should probably be changed.
 setparamifndef('params.postproc.spike_location_slack','30');
-
-% Parameters for sonification
-setparamifndef('params.sonify.base_freq','261.6');
-setparamifndef('params.sonify.ratios','[4 5 6 7 9 11 13 15 11 19 21 23]');
-setparamifndef('params.sonify.note_duration','0.1');
-setparamifndef('params.sonify.time_stretch','1');
-setparamifndef('params.sonify.sound_duration','10');
 
 end
 

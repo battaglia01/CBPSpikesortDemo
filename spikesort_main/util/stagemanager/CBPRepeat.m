@@ -1,5 +1,5 @@
 function CBPNext
-    global stages currstageind;
-    oldstage = stages{currstageind}{1};
+    global cbpglobals;
+    oldstage = cbpglobals.stages{cbpglobals.currstageind}.currfun;
     oldstage();
 end

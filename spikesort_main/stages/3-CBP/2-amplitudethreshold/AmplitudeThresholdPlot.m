@@ -1,26 +1,25 @@
-function f = AmplitudeThresholdPlot(disable)
+function f = AmplitudeThresholdPlot(command)
     global params dataobj;
-    
-    if nargin == 1 & ~disable
+
+    if nargin == 1 & isequal(command, 'disable')
         DisableCalibrationTab('Threshold Adjustment');
         return;
     end
 
-    %set local variables
+% -------------------------------------------------------------------------
+% Set up basics
     spike_amps = dataobj.CBPinfo.spike_amps;
     spike_times = dataobj.CBPinfo.spike_times;
     amp_thresholds = dataobj.CBPinfo.amp_thresholds;
 
+    f = GetCalibrationFigure;
+    
     %%@refactored from opts inputparser
     ampbins = params.amplitude.ampbins;
     dt = dataobj.whitening.dt;
     wfnorms = cellfun(@(wf) norm(wf), dataobj.CBPinfo.init_waveforms);
     true_sp = {};
     location_slack = params.postproc.spike_location_slack;%%@is this right?
-
-    % Setup new tab
-    AddCalibrationTab('Threshold Adjustment');
-    f = GetCalibrationFigure;
 
     n = length(spike_amps);
     setappdata(f, 'spikeamps', spike_amps);
@@ -50,8 +49,52 @@ function f = AmplitudeThresholdPlot(disable)
     v = ver();
     haveipt = any(strcmp('Image Processing Toolbox', {v.Name}));
     cols = hsv(n);
+    
+% -------------------------------------------------------------------------
+% Set up new tab and panel %%@ -- all mike
+    AddCalibrationTab('Threshold Adjustment');
+    
+    %compute panel position
+    max_n = 4;  %%@magic number, make param later
+    
+    p_width = max(n/max_n,1);
+    p_height = max((n+1)/(max_n+1),1);
+    
+    %add panel to tab
+    parent = get(gca,'Parent');
+    p = uipanel(parent,...
+            'Units','normalized', ...
+            'Position',[0 1-p_height p_width p_height], ...
+            'Tag', 'amp_panel');
+    
+    %create scrollbars
+    if n > max_n
+        uicontrol('Units','normalized',...
+                'Style','Slider',...
+                'Position',[.98,.03,.02,.97],...
+                'Min',0,...
+                'Max',1,...
+                'Value',1,...
+                'visible','on',...
+                'Tag','scrollvert',...
+                'Parent',parent,...
+                'Callback',@(scr,event) scrollvert);
+        uicontrol('Units','normalized',...
+                'Style','Slider',...
+                'Position',[0,0,.98,.03],...
+                'Min',0,...
+                'Max',1,...
+                'Value',0,...
+                'Tag','scrollhoriz',...
+                'Parent',parent,...
+                'Callback',@(scr,event) scrollhoriz);
+    end
+            
+% -------------------------------------------------------------------------
+% Do all subplotting
     for i = 1:n
-        subplot(n+1, n, i); cla;
+        subplot(n+1, n, i, 'Parent', p);
+        cla;
 
         % Plot spike amplitude histogram
         [H, X] = hist(spike_amps{i}, ampbins);
@@ -88,7 +131,7 @@ function f = AmplitudeThresholdPlot(disable)
 
         ylim(yl);
     end
-
+    
     % Plot initial ACorr/XCorrs
     for i = 1:n
         plotACorr(threshspiketimes, i);
@@ -101,22 +144,12 @@ function f = AmplitudeThresholdPlot(disable)
     % Report on performance relative to ground truth if available
     showGroundTruthEval(threshspiketimes, f);
 
-    ax  = subplot(n+1, n, sub2ind([n n+1], 1, n+1));
+    ax = subplot(n+1, n, sub2ind([n n+1], 1, n+1), 'Parent', p);
+    
     set(ax, 'Visible', 'off');
     pos = get(ax, 'Position');
     ht = pos(4);
     wsz = get(f, 'Position'); wsz = wsz([3:4]);
-    % Add menu item to export thresholds
-    %gui_data_export(f, 'amp_thresholds', 'CBP');
-    % Add button to export thresholds:
-%     uih = uicontrol(f, 'Style', 'pushbutton', ...
-%                     'String', 'Use thresholds', ...
-%                     'Position', [pos(1), pos(2)+ht/2, pos(3), ht/2].*[wsz,wsz], ...
-%                     'Callback', @acceptCallback);
-%     uih = uicontrol(f, 'Style', 'pushbutton', ...
-%                     'String', 'Revert to default', ...
-%                     'Position', [pos(1), pos(2), pos(3), ht/2].*[wsz,wsz], ...
-%                     'Callback', @revertCallback);
     return
 end
 
@@ -151,9 +184,11 @@ function showGroundTruthEval(spiketimes, f)
 
     % Display on fig
     n = length(spiketimes);
+    p = findall(gcf,'Tag','amp_panel');
+    
     for i = 1:length(true_sp)
         if isempty(true_sp{i}), continue; end
-        subplot(n+1, n, i);
+        subplot(n+1, n, i, 'Parent', p);
         xlabel(sprintf('misses: %d fps: %d', total_misses(i), total_false_positives(i)));
     end
     return
@@ -162,6 +197,10 @@ end
 % -----------------
 function updateThresh(newthresh, i, f)
     global dataobj;
+    if CalibrationTabExists('Waveform Review')
+        UpdateStage(@AmplitudeThresholdStage,false);   %doesn't clear current
+    end
+    
     threshsts = getappdata(f, 'threshspiketimes');
     sts       = getappdata(f, 'spiketimes');
     amps      = getappdata(f, 'spikeamps');
@@ -190,6 +229,8 @@ end
 % -----------------
 function plotACorr(spiketimes, i)
     n = length(spiketimes);
+    p = findall(gcf,'Tag','amp_panel');
+    
     subplot(n+1, n, sub2ind([n n+1], i, 2));
     psthacorr(spiketimes{i})
     title(sprintf('Autocorr, cell %d', i));
@@ -205,9 +246,38 @@ function plotXCorr(spiketimes, i, j)
         j = tmp;
     end
     n = length(spiketimes);
+    p = findall(gcf,'Tag','amp_panel');
+    
     subplot(n+1, n, sub2ind([n n+1], j, i+2));
     psthxcorr(spiketimes{i}, spiketimes{j})
     title(sprintf('Xcorr, cells %d, %d', i, j));
     if ((i==1) & (j==2)), xlabel('time (sec)'); end
     return
 end
+
+% -----------------
+function scrollvert
+   scrollbar = findall(gcf,'Type','uicontrol','Tag','scrollvert');
+   panel = findall(gcf,'Tag','amp_panel');
+
+   pos = get(panel,'Position');
+   val = get(scrollbar,'value');
+   
+   %%after all is said and done, the above scrolls it correctly
+   pos(2) = (1-pos(4))*val;
+   
+   set(panel,'Position', pos);
+end % end scrollvert
+
+% -----------------
+function scrollhoriz
+   scrollbar = findall(gcf,'Type','uicontrol','Tag','scrollhoriz');
+   panel = findall(gcf,'Tag','amp_panel');
+
+   pos = get(panel,'Position');
+   val = get(scrollbar,'value');
+  
+   pos(1) = (1-pos(3))*val;
+   
+   set(panel,'Position', pos);
+end % end scrollhoriz

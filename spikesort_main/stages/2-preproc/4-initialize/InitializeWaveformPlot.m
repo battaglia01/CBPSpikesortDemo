@@ -1,12 +1,15 @@
-function InitializeWaveformPlot(disable)
+function InitializeWaveformPlot(command)
     global params dataobj;
     
-    if nargin == 1 & ~disable
+    if nargin == 1 & isequal(command, 'disable')
         DisableCalibrationTab('Initial Waveform PCs');
         DisableCalibrationTab('Initial Waveforms');
         return;
     end
 
+% -------------------------------------------------------------------------
+% Set up basics
+    
     %set up local vars
     XProj = dataobj.clustering.XProj;
     assignments = dataobj.clustering.assignments;
@@ -14,7 +17,6 @@ function InitializeWaveformPlot(disable)
     nchan = dataobj.whitening.nchan;
     threshold = params.clustering.spike_threshold;
 
-    %%@Get rid of marker?
     % XProj : snippet x PC-component matrix of projections
     % assignments : vector of class assignments
     % X : time x snippet-index matrix of data
@@ -37,6 +39,9 @@ function InitializeWaveformPlot(disable)
            repmat(projCentroids(:,i),1,counts(i))).^2))';
     end
 
+% -------------------------------------------------------------------------
+% Plot PCs (Tab 1)
+    
     AddCalibrationTab('Initial Waveform PCs');
     cla('reset');
     hold on;
@@ -75,11 +80,8 @@ function InitializeWaveformPlot(disable)
     xlabel('PC 1'); ylabel('PC 2');
     title(sprintf('Clustering result (%d clusters)', N));
 
-    if (nargin < 3)
-        return;
-    end
-
-    % Plot the time-domain snippets
+% -------------------------------------------------------------------------
+% Plot the time-domain snippets (Tab 2)
     AddCalibrationTab('Initial Waveforms');
     hold on;
     nc = ceil(sqrt(N)); nr=ceil((N)/nc);

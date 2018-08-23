@@ -1,7 +1,4 @@
-%%@Mike's note: this function is the absolute devil. The linkaxpos thing
-%%glitches out in the tabbed window for some reason. plotyy exists but is
-%%awful to work with and will be deprecated soon. yyaxis is 2016a only.
-%%Argh.
+%%@Mike's note: could still use some cleaning up
 
 function [dts, inds, histx, histy] = psthxcorr(spiketime1, spiketime2, t0, t1, dropzeros, calchist, show)
 
@@ -32,7 +29,7 @@ if show
     rh = plot(dts, inds, '.');
     set(rax, 'XLim', [t0 t1]);
     set(rax, 'YLim', [0 length(spiketime2)+1])
-    
+
     if calchist
         set(rh, 'Color', 0.75 .* [1 1 1]);
         yyaxis right;
@@ -41,16 +38,6 @@ if show
             axis tight;
         end
         set(rax, 'XTick', []);
-
-        
-%         pos = get(rax, 'Position');
-%         hax = axes('Position', pos);
-%         if ~isempty(histy), plot(hax, histx, histy, 'k'); end
-%         set(hax, 'YAxisLocation', 'right', 'XLim', get(rax, 'XLim'), 'Color', 'none');
-%         set(hax, 'XTick', []);
-
-%        linkaxpos(rax, hax);
-%        linkaxes([rax, hax], 'x'); % This is slow...
     end
 end
 

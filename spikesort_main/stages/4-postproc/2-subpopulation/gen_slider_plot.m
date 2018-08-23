@@ -13,10 +13,14 @@ opts.parse(varargin{:});
 opts = opts.Results;
 
 if isempty(opts.handle)
-    opts.handle = figure();
+    AddCalibrationTab('Subpopulations');
+    opts.handle = GetCalibrationFigure();
+%%@    opts.handle = figure();
 end
+
 figure(opts.handle);
 fig = getfig(opts.handle);
+fig = opts.handle;
 
 % Add data to figure
 setappdata(fig, 'data', opts.data);
@@ -50,12 +54,15 @@ index_min = 0.99;
 index_max = api.data_length(opts.data);
 slider_step = 1 / (index_max - index_min);
 slider_steps = min([slider_step 1]) * [1 5];
-shandle = uicontrol(fig, ...
+parent_tab = GetCalibrationTab('Subpopulations');
+%%@ CONSIDER JSCROLLBAR
+%%@ -- original here -- below makes it tab shandle = uicontrol('Parent', fig, ...
+shandle = uicontrol('Parent', parent_tab, ...
     'Style'     , 'slider',                        ...
     'Min'       , index_min,                       ...
     'Max'       , index_max,                       ...
     'Units'     , 'normalized',                    ...
-    'Position'  , [0.01, 0.025, 0.95, 0.01],       ...
+    'Position'  , [0.01, 0.01, 0.98, 0.03],        ...
     'Value'     , start_index,                     ...
     'SliderStep', slider_steps,                    ...
     'CallBack'  , api.slider_plot,                ...
@@ -76,7 +83,8 @@ set(opts.handle, 'Toolbar', 'figure')
 
 % Set up axes in panel
 % ax = axes('Parent', fig, 'Units', 'normalized', 'Position', [0, 0.025, 0.95, 0.9]);
-ax = axes();
+%%@ax = axes();
+ax = gca;
 setappdata(fig, 'slider_axes', ax);
 
 % Initial plot call

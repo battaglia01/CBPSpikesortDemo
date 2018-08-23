@@ -4,7 +4,9 @@ global params dataobj;
         %If it doesn't already exist, create it
         h = figure(params.plotting.calibration_figure);
         h.NumberTitle = 'off';
-        h.Name = 'Calibration Plot';
+        
+        %may not have filename yet
+        h.Name = 'Calibration'
         
         %Set up basic initial features
         set(gcf, 'ToolBar', 'none');
@@ -15,5 +17,15 @@ global params dataobj;
         tg = uitabgroup(h, 'TabLocation', 'left', 'Tag', 'calibration_tg');
     else
         h = figure(params.plotting.calibration_figure);
+    end
+    
+    %reset titlebar
+    if isfield(dataobj,'filename')
+        filenameindex = max(strfind(dataobj.filename,'/'));
+        if isempty(filenameindex)
+            filenameindex = 0;
+        end
+        shortname = dataobj.filename(filenameindex+1:end);
+        set(h,'Name', [shortname ' - Calibration']);
     end
 end

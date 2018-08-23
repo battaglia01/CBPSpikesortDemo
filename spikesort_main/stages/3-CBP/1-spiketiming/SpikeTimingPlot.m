@@ -1,66 +1,94 @@
-function SpikeTimingPlot(disable)
+function SpikeTimingPlot(command)
     global params dataobj;
-    
-    if nargin == 1 & ~disable
+
+    if nargin == 1 & isequal(command, 'disable')
         DisableCalibrationTab('CBP Results');
         return;
     end
 
-
-    %set up local vars
+% -------------------------------------------------------------------------
+% Set up basics
+    %set up local vars to reuse
     whitening = dataobj.whitening;
     spike_times = dataobj.CBPinfo.spike_times;
     spike_amps = dataobj.CBPinfo.spike_amps;
+    spike_traces_init = dataobj.CBPinfo.spike_traces_init;
     init_waveforms = dataobj.CBPinfo.init_waveforms;
     snippets = dataobj.CBPinfo.snippets;
     recon_snippets = dataobj.CBPinfo.recon_snippets;
+    nchan = size(whitening.data,1);
 
-
-    nchan=size(whitening.data,1);
-
-    %** Add residuals
-
+% -------------------------------------------------------------------------
+% Plot Timeseries data (top-left subplot)
     AddCalibrationTab('CBP Results');
+    subplot(2,2,1);
+    cla;
 
-    %Plot timeseries data
-    subplot(2,2,1);  cla;
-    inds = params.rawdata.data_plot_inds;
-    plotChannelOffset = 6*ones(length(inds),1)*([1:nchan]-1); %**magic number
-    plot((inds-1)*whitening.dt, whitening.data(:,inds)' + plotChannelOffset, 'k');
-    axis tight
-    yrg = get(gca,'Ylim');   xrg = get(gca,'Xlim');
+    %create combined spike trace waveform to subtract from whitening data
+    combined_spike_traces = zeros(size(whitening.data'));
+    for n=1:length(spike_traces_init)
+        combined_spike_traces = combined_spike_traces + spike_traces_init{n};
+    end
+    
+    %residual_noise = whitening.data' - combined_spike_traces;
+    residual_noise = whitening.data';       %%@disable difference
+    
+    plotChannelOffset = 6*ones(whitening.nsamples,1)*([1:nchan]-1); %**magic number
+
+    plot((0:whitening.nsamples-1)*whitening.dt, residual_noise + plotChannelOffset, 'k');
+
+    RegisterScrollAxes(gca);
+    scrollzoomplot(gca);
+    xlabel('time (sec)');
     title(sprintf('Data, filtered & whitened, nChannels=%d, %.1fkHz', nchan, 1/(1000*whitening.dt)));
 
-    %Plot recovered spikes
-    subplot(2,2,3);  cla;
+% -------------------------------------------------------------------------
+% Plot recovered spikes (bottom-left subplot)
+
+    yrg = get(gca,'Ylim');
+    xrg = get(gca,'Xlim');
+
+    subplot(2,2,3);
+    cla;
+
     bandHt = 0.12;
     yinc = bandHt*(yrg(2)-yrg(1))/length(init_waveforms);
-    clrs = hsv(length(init_waveforms));
-    patch([xrg'; xrg(2); xrg(1)], [yrg(2)*[1;1]; (yrg(1)+(1+bandHt)*(yrg(2)-yrg(1)))*[1;1]], ...
+    clrs = hsv(length(init_waveforms)); %%@ color darkening
+
+    patch([0;(whitening.nsamples-1)*whitening.dt; ...
+        (whitening.nsamples-1)*whitening.dt; 0], ...
+        [yrg(2)*[1;1]; (yrg(1)+(1+bandHt)*(yrg(2)-yrg(1)))*[1;1]], ...
           0.9*[1 1 1], 'EdgeColor', 0.9*[1 1 1]);
+
     set(gca,'Ylim', [yrg(1), yrg(2)+bandHt*(yrg(2)-yrg(1))]);
     hold on
+
     %** Should do proper interpolation
-    midChan = ceil(nchan/2);
-    for n=1:length(init_waveforms)
-        spkInds = (spike_times{n} > inds(1)) & (spike_times{n} < inds(end));
-        tInds = spike_times{n}(spkInds);
-        plot((tInds-1)*whitening.dt, (yrg(2)+(n-0.5)*yinc)*ones(1,length(tInds)), '.', 'Color', clrs(n,:));
-        trace = zeros(length(inds),nchan);
-        trace(round(tInds)-inds(1)+1,midChan) = spike_amps{n}(spkInds)';
-        trace = conv2(trace, reshape(init_waveforms{n},[],nchan), 'same');
-        plot((inds-1)*whitening.dt, trace + plotChannelOffset, 'Color', clrs(n,:));
-        plot((inds-1)*whitening.dt, plotChannelOffset, 'k');
+    %%@ Mike note - windowed sinc interpolation?
+    for n=1:length(spike_traces_init)
+        %plot top
+        plot((spike_times{n}-1)*whitening.dt, (yrg(2)+(n-0.5)*yinc)*ones(1,length(spike_times{n})), '.', 'Color', clrs(n,:));
+        
+        %plot waveform
+        plot((0:whitening.nsamples-1)*whitening.dt, spike_traces_init{n} + plotChannelOffset, 'Color', clrs(n,:));
     end
-    hold off
+
+    %plot zero-crossing
+    plot((0:whitening.nsamples-1)*whitening.dt, plotChannelOffset, 'k');
+    hold off;
+
+    RegisterScrollAxes(gca);
+    scrollzoomplot(gca);
     xlabel('time (sec)');
     title('Recovered spikes');
 
-    % Residual Histograms
+% -------------------------------------------------------------------------
+% Plot Residual Histograms (top-right subplot)
+    subplot(2,2,2);
+    cla;
     resid = cell2mat(cellfun(@(c,cr) c-cr, snippets, recon_snippets, 'UniformOutput', false));
-    subplot(2,2,2); cla;
     %mx = max(cellfun(@(c) max(abs(c(:))), snippets));
-    mx = max(abs(whitening.data(:)));
+    mx = max(abs(whitening.data(:)));       %%@Linf -- is this right?
     [N, Xax] = hist(resid, mx*[-50:50]/101);
     plot(Xax,N); set(gca,'Yscale','log'); rg=get(gca,'Ylim');
     hold on
@@ -74,6 +102,8 @@ function SpikeTimingPlot(disable)
     end
     legend(gh, 'univariate Gaussian');
 
+% -------------------------------------------------------------------------
+% Plot Histogram of magnitude (bottom-right subplot)
     %Histogram of magnitude
     subplot(2,2,4); cla;
     mx = max(sqrt(sum(whitening.data.^2,1)));

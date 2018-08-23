@@ -1,36 +1,48 @@
-function RawDataPlot(disable)
-global params dataobj;
+function RawDataPlot(command)
+    global params dataobj;
 
-if nargin == 1 & ~disable
-    DisableCalibrationTab('Raw Data Stage');
-    return;
-end
+    if nargin == 1 & isequal(command, 'disable')
+        DisableCalibrationTab('Raw Data Stage');
+        return;
+    end
 
-rawdata = dataobj.rawdata;
+    rawdata = dataobj.rawdata;
 
 % -------------------------------------------------------------------------
-% Display raw data, and Fourier  amplitude
-    plotDur = min(params.rawdata.min_plot_dur,rawdata.nsamples);
-    plotT0 = round((rawdata.nsamples-plotDur)/2);
-    inds = plotT0+[1:plotDur]; % opens a "plotDur"-width window in the middle of the sample
-    params.rawdata.data_plot_inds = inds;
+% Set up basics
+    %set inds if not set by default
+    if isempty(params.plotting.data_plot_times)
+        plotDur = min(params.rawdata.min_plot_dur,rawdata.nsamples)*rawdata.dt;
+        plotT0 = (rawdata.nsamples*rawdata.dt-plotDur)/2;
+        params.plotting.data_plot_times = [plotT0 plotT0+plotDur]; % opens a "plotDur"-width window in the middle of the sample
+    end
 
-    plotChannelOffset = 2*std(rawdata.data(:))*ones(length(inds),1)*([1:rawdata.nchan]-1);
-
-    %%%PLOT TIME DOMAIN
+% -------------------------------------------------------------------------
+% Plot Time Domain (top subplot)
     t_rd = AddCalibrationTab('Raw Data Stage');
-    
-    subplot(2,1,1); cla;
-    
-    plot([inds(1), inds(end)]*rawdata.dt, [0 0], 'k');
+
+    subplot(2,1,1);
+    cla;
+
+    %get channel offset
+    plotChannelOffset = 2*std(rawdata.data(:))*ones(rawdata.nsamples,1)*([1:rawdata.nchan]-1);
+
+    %plot zero-crossing
     hold on;
-    plot((inds-1)*rawdata.dt, rawdata.data(:,inds)'+ plotChannelOffset);
+    plot([0 (rawdata.nsamples-1)*rawdata.dt], [0 0], 'k');
+
+    %plot channels
+    plot((0:rawdata.nsamples-1)*rawdata.dt, rawdata.data' + plotChannelOffset);
     hold off
 
-    axis tight; xlabel('time (sec)');  ylabel('voltage');
+    RegisterScrollAxes(gca);
+    scrollzoomplot(gca);
+    xlabel('time (sec)');
+    ylabel('voltage');
     title(sprintf('Raw data, nChannels=%d, %.1fkHz', rawdata.nchan, 1/(1000*rawdata.dt)));
 
-    %Plot Fourier transform
+% -------------------------------------------------------------------------
+% Plot Frequency Domain (bottom subplot)
     subplot(2,1,2); cla;
 
     noiseCol = [1 0.3 0.3];

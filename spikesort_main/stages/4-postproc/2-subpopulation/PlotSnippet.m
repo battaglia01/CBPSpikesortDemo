@@ -1,6 +1,7 @@
 function h = PlotSnippet(snippet, snipcenter, varargin)
+global dataobj;
 
-opts = inputParser();
+opts = inputParser();   
 opts.addParamValue('dt', 1);
 opts.addParamValue('startpad', 1);
 opts.addParamValue('endpad', 1);
@@ -27,13 +28,22 @@ end
 % Calculate offset
 snipl = size(snippet,1);
 snipmidi = (snipl-1)/2 + 1;
-snipx = opts.dt*((1:snipl) - snipmidi) + snipcenter;
+snipx = opts.dt*((1:snipl) - snipmidi + snipcenter);
+
+%%@MIKE'S NOTE - ADD OFFSETS -- magical factor of 1/8 below is arbitrary
+%calculate offsets
+plotChannelOffset = 1/8 * (mean(snippet'.^6,1)).^(1/6) * ones(snipl,1)...
+                      * ([1:dataobj.whitening.nchan]-1);
+plotChannelOffset = plotChannelOffset - mean(plotChannelOffset(1,:));
+%plotChannelOffset = plotChannelOffset/length(snippet)^2;
+%plotChannelOffset = 0*plotChannelOffset;
+%plotChannelOffset = plotChannelOffset(1:length(snippet),:);
 
 % Plot the data snippet
 if isempty(opts.recon)
-    plot(snipx, snippet);
+    plot(snipx, snippet + plotChannelOffset);
 else
-    plot(snipx, snippet, 'c');
+    plot(snipx, snippet + plotChannelOffset, 'c');
 end
 hold on;
 axis tight
@@ -43,17 +53,16 @@ if ~isempty(opts.recon)
     plot(snipx, opts.recon, 'r');
 end
 
-
 % Note top of axis for plotting spike markers
 ylim = get(gca, 'YLim');
 marky = ylim(2) - 0.02*diff(ylim);
 
 % Find CBP spikes to plot over snippet (pad a little)
-findstart = snipx(1)   - opts.startpad;
-findend   = snipx(end) + opts.endpad;
-cbpi   = FindSpikes(findstart, findend, opts.cbp);
-clusti = FindSpikes(findstart, findend, opts.clust);
-truei  = FindSpikes(findstart, findend, opts.true);
+findstart = snipx(1)   - opts.startpad*opts.dt;
+findend   = snipx(end) + opts.endpad*opts.dt;
+cbpi   = FindSpikes(findstart/opts.dt, findend/opts.dt, opts.cbp);
+clusti = FindSpikes(findstart/opts.dt, findend/opts.dt, opts.clust);
+truei  = FindSpikes(findstart/opts.dt, findend/opts.dt, opts.true);
 
 % Note matching colors
 if isempty(opts.colors)
@@ -63,17 +72,24 @@ if isempty(opts.colors)
     opts.colors = opts.cmf(opts.ncolors);
 end
 
-% Plot
+% Plot CBP, Clusters, and (if possible) Ground Truth.
+%%@ NOTE: the [10 160] at the end of the legend forces a line break
+%%plus nbsp, which is necessary since the markers are so large
+cbph = [];
+clusth = [];
+trueh = [];
+
 for i = 1:length(cbpi)
     spikeindices = cbpi{i};
     if isempty(spikeindices), continue; end
     
-    spiketimes = opts.cbp{i}(spikeindices);
-    cbph(i) = plot(spiketimes, marky * ones(size(spiketimes)), ...
+    spiketimes = opts.dt * opts.cbp{i}(spikeindices);
+    cbph(end+1) = plot(spiketimes, marky * ones(size(spiketimes)), ...
         'LineStyle', 'none', ...
         'Marker', '.', ...
         'MarkerSize', 25, ...
-        'Color', opts.colors(i, :));
+        'Color', opts.colors(i, :), ...
+        'DisplayName', ['CBP - Spike #' num2str(i) 10 160]);
     if ~isempty(opts.cbpamp)
         spikeamps = opts.cbpamp{i}(spikeindices);
         for j = 1:length(spikeamps)
@@ -88,26 +104,30 @@ for i = 1:length(clusti)
     spikeindices = clusti{i};
     if isempty(spikeindices), continue; end
     
-    spiketimes = opts.clust{i}(spikeindices);
-    clusth(i) = plot(spiketimes, marky * ones(size(spiketimes)), ...
+    spiketimes = opts.dt * opts.clust{i}(spikeindices);
+    clusth(end+1) = plot(spiketimes, marky * ones(size(spiketimes)), ...
         'LineStyle', 'none', ...
         'Marker', 'x', ...
         'MarkerSize', 20, ...
         'LineWidth', 2, ...
-        'Color', opts.colors(i, :));
+        'Color', opts.colors(i, :), ...
+        'DisplayName', ['Cluster - Spike #' num2str(i) 10 160]);
 end
 for i = 1:length(truei)
     spikeindices = truei{i};
     if isempty(spikeindices), continue; end
     
-    spiketimes = opts.true{i}(spikeindices);
-    trueh(i) = plot(spiketimes, marky * ones(size(spiketimes)), ...
+    spiketimes = opts.dt * opts.true{i}(spikeindices);
+    trueh(end+1) = plot(spiketimes, marky * ones(size(spiketimes)), ...
         'LineStyle', 'none', ...
         'Marker', 'o', ...
         'MarkerSize', 15, ...
         'LineWidth', 2, ...
-        'Color', opts.colors(i, :));
+        'Color', opts.colors(i, :), ...
+        'DisplayName', ['Truth - Spike #' num2str(i) 10 160]);
 end
+legend([cbph clusth trueh]);
+xlabel('Time (sec)')
 
 set(gca(), 'XLim', [findstart findend]);
 hold off

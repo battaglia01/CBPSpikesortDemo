@@ -1,71 +1,81 @@
-function FilterPlot(disable)
+function FilterPlot(command)
     global params dataobj;
-    
-    if nargin == 1 & ~disable
-        DisableCalibrationTab('FilteredData');
+
+    if nargin == 1 & isequal(command, 'disable')
+        DisableCalibrationTab('Filtered Data');
         return;
     end
 
     filtering = dataobj.filtering;
 
-    % Plot filtered data, Fourier amplitude, and histogram of magnitudes
-
+% -------------------------------------------------------------------------
+% Set up basics
+    % local variables to reuse
     data = filtering.data;
-
-    % copied from WhitenNoise: %%@ Mike's comment - oh no, duplicated code?!
-    %%@ Again hard-coded RMS
-    dataMag = sqrt(sum(data .^ 2, 1));
-    %dataMag = sum(abs(data),1); %%@  Use Linf
+    dataMag = sqrt(sum(data.^2, 1));    %%@ Again hard-coded RMS
+    
     nchan = size(data,1);
     thresh = params.whitening.noise_threshold;
+    
     minZoneLen = params.whitening.min_zone_len;
-    if isempty(minZoneLen), minZoneLen = params.rawdata.waveform_len/2; end
+    if isempty(minZoneLen)
+        minZoneLen = params.rawdata.waveform_len/2;
+    end
+    
     noiseZones = GetNoiseZones(dataMag, thresh, minZoneLen);
     noiseZoneInds = cell2mat(cellfun(@(c) c', noiseZones, 'UniformOutput', false));
-    zonesL = cellfun(@(c) c(1), noiseZones);  zonesR = cellfun(@(c) c(end), noiseZones);
-
-    %Plot time domain
+    zonesL = cellfun(@(c) c(1), noiseZones);
+    zonesR = cellfun(@(c) c(end), noiseZones);
+    
+% -------------------------------------------------------------------------
+% Plot Time Domain (top-left subplot)
     t_filt = AddCalibrationTab('Filtered Data');
 
-    subplot(2,2,1); cla;
+    subplot(2,2,1);
+    cla;
 
-    noiseCol = [1 0.4 0.4];
-    inds = params.rawdata.data_plot_inds;
-    plotChannelOffset = 2*(mean(data(:).^6)).^(1/6)*ones(length(inds),1)*([1:nchan]-1);
+    %get channel offsets
+    plotChannelOffset = 2*(mean(data(:).^6)).^(1/6)*ones(filtering.nsamples,1)*([1:nchan]-1);
     plotChannelOffset = plotChannelOffset - mean(plotChannelOffset(1,:));
     mxOffset = plotChannelOffset(1,end);
-    visibleInds = find(((inds(1) < zonesL) & (zonesL < inds(end))) |...
-                       ((inds(1) < zonesR) & (zonesR < inds(end))));
-
-    if(~isempty(visibleInds))
-        nh=patch(filtering.dt*[[1;1]*zonesL(visibleInds); [1;1]*zonesR(visibleInds)],...
-             (mxOffset+thresh)*[-1;1;1;-1]*ones(1,length(visibleInds)), noiseCol,...
-             'EdgeColor', noiseCol);
-    end
-
+    
+    %draw red polygon behind noise segments    
+    noiseCol = [1 0.4 0.4];
+    nh=patch(filtering.dt*[[1;1]*zonesL; [1;1]*zonesR],...
+         (mxOffset+thresh)*[-1;1;1;-1]*ones(1,length(zonesL)), noiseCol,...
+         'EdgeColor', noiseCol);
+    
+    %plot zero-crossing
     hold on;
-    plot([inds(1), inds(end)]*filtering.dt, [0 0], 'k');
-    dh = plot((inds-1)*filtering.dt, filtering.data(:,inds)' + plotChannelOffset);
+    plot([0 (filtering.nsamples-1)*filtering.dt], [0 0], 'k');
+    
+    %plot channels
+    plot((0:filtering.nsamples-1)*filtering.dt, filtering.data' + plotChannelOffset);
     hold off;
 
-    set(gca, 'Xlim', ([inds(1),inds(end)]-1)*filtering.dt);
-    %  set(gca,'Ylim',[-1 1]);
-    legend('noise regions (to be whitened)');  title('Filtered data');
+    RegisterScrollAxes(gca);
+    scrollzoomplot(gca);
+    legend('noise regions (to be whitened)');
+    xlabel('time (sec)');
+    ylabel('filtered amplitude');
+    title('Filtered data');
 
-    %Plot frequency domain
-
-    subplot(2,2,3); cla;
+% -------------------------------------------------------------------------
+% Plot Frequency Domain (bottom-left subplot)
+    subplot(2,2,3);
+    cla;
     maxDFTind = floor(filtering.nsamples/2);
     dftMag = abs(fft(filtering.data,[],2));
     if (nchan > 1.5)
         dftMag = sqrt(sum(dftMag.^2)); %%@ MUST CHANGE THIS TOO
-    end;
+    end
     plot(([1:maxDFTind]-1)/(maxDFTind*filtering.dt*2), dftMag(1:maxDFTind));
     set(gca,'Yscale','log'); axis tight;
     xlabel('frequency (Hz)'); ylabel('amplitude');
     title('Fourier amplitude, filtered data');
 
-    %Plot histogram
+% -------------------------------------------------------------------------
+% Plot Filtered Data Histogram (top-right subplot)
     subplot(2,2,2); cla;
 
     sd = sqrt(sum(cellfun(@(c) sum(dataMag(c).^2), noiseZones)) / ...
@@ -89,7 +99,9 @@ function FilterPlot(disable)
     end
     legend('Data', 'Gaussian, fit to noise regions');
 
-
+% -------------------------------------------------------------------------
+% Plot Cross-Channel Histogram (bottom-right subplot)
+    
     subplot(2,2,4); cla;
 
     [N,X] = hist(dataMag, nbins);
@@ -98,7 +110,7 @@ function FilterPlot(disable)
     h=bar(X,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
     hold on;
     dh= bar(X,Nnoise); set(dh, 'FaceColor', noiseCol, 'BarWidth', 1);
-    ch= plot(X, (max(N)/max(chi))*chi, 'g');
+    ch= plot(X, (max(N)/max(chi))*chi, 'k', 'LineWidth', 2);
     hold off; set(gca, 'Ylim', yrg);
     xlabel('rms magnitude (over all channels)');
     legend([h,dh, ch], 'all data', 'noise regions', 'chi-distribution, fit to noise regions');

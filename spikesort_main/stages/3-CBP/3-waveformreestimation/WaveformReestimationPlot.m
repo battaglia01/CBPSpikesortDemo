@@ -1,15 +1,15 @@
-function WaveformReestimationPlot(disable)
+function WaveformReestimationPlot(command)
     global params dataobj;
 
-    if nargin == 1 & ~disable
+    if nargin == 1 & isequal(command,'disable')
         DisableCalibrationTab('Waveform Review');
         return;
     end
 
 
     num_waveforms = length(dataobj.CBPinfo.final_waveforms);
-    cols= hsv(num_waveforms);
-    nchan=size(dataobj.whitening.data,1);
+    cols = hsv(num_waveforms);
+    nchan = size(dataobj.whitening.data,1);
     
     AddCalibrationTab('Waveform Review');
     nc = ceil(sqrt(num_waveforms));

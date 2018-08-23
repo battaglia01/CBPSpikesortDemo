@@ -67,6 +67,14 @@ num_groups_per_feature = cellfun(@(C) size(C,1), grid_points);
 n_dict_entries = sum(num_groups_per_feature) * interp_group_size;
 spsize = maxfeaturelen * n_dict_entries;
 
+if n_dict_entries == 0
+    n_dict_entries = 1;
+end
+
+if isempty(spsize)
+    spsize=1;
+end
+
 Dictionary = spalloc(prod(desired_dims), n_dict_entries, spsize);
 
 % Dictionary columns are ordered as follows:

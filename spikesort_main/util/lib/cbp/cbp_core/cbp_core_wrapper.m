@@ -40,7 +40,7 @@ offset = 0;
 num_chunks = max(1, ceil(length(data_samples) / PARFOR_CHUNK_SIZE));
 
 % Process in chunks so as not to be so memory-intensive.
-for chunk_num = 1 : num_chunks
+for chunk_num = 1:num_chunks
     chunk_idx = offset + 1 : min(length(data_samples), ...
                                  offset + PARFOR_CHUNK_SIZE);
     chunk_size = length(chunk_idx);
@@ -52,19 +52,22 @@ for chunk_num = 1 : num_chunks
     else
         I = [];
     end
-    fprintf('Processing chunk %d/%d of size %d...\n', ...
+    fprintf('\nProcessing chunk %d/%d, which contains %d snippets...\n', ...
              chunk_num, num_chunks, chunk_size);
 
     D = data_samples(chunk_idx);
     greedy_count = false(chunk_size, 1);
     info_flag = nargout > 3;
 
-    numprogunits = 50;
+    numprogunits = min(50,chunk_size);
     fprintf('Progress:\n');
     fprintf('  %s\n',repmat('_',1,numprogunits));
     fprintf('  \n');
     fprintf('  %s\n',repmat(sprintf('\xAF'),1,numprogunits));
-    parfor example_num = 1 : chunk_size
+    
+    %%@Picking a random seed here avoids weird issues in the progress bar
+    rseed = rand;
+    parfor example_num=1:chunk_size
         tic;
 
         pars_i = pars;
@@ -96,7 +99,12 @@ for chunk_num = 1 : num_chunks
 
         eltime = toc;
         if pars_i.progress
-            if mod(example_num, floor(chunk_size/numprogunits)) == 0
+            %%@The below rounds things and sees if we've incremented another
+            %%@numprogunit. This will work even if the snippets are
+            %%@processed in some random order
+            changed = floor(example_num/chunk_size*numprogunits+rseed) - ...
+                      floor((example_num-1)/chunk_size*numprogunits+rseed);
+            if changed==1
                 %%@This fprintf string advances the progress bar
                 fprintf('%s|\n  %s\n',repmat(sprintf('\b'),1,...
                     numprogunits+4),repmat(sprintf('\xAF'),1,numprogunits));
