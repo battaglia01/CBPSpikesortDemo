@@ -19,25 +19,25 @@ end
 params.general.calibration_mode=0;
 
 %%Begin script
-InitStage;
+InitAllStages;
 
 %%%%stages are, in order%%%%
 %%Pre-processing
-RawDataStage;
-FilterStage;
-WhitenStage;
-InitializeWaveformStage;
+CBPStage('RawData');
+CBPStage('Filter');
+CBPStage('Whiten')
+CBPStage('InitializeWaveform');
 
 %%CBP
 for n=1:num_iterations
-    SpikeTimingStage;
-    AmplitudeThresholdStage;
-    WaveformReestimationStage;
+    CBPStage('SpikeTiming');
+    CBPStage('AmplitudeThreshold');
+    CBPStage('WaveformRefinement');
 end
 
-%%%%Stop here for now%%%%%
-%%For Reference - Post-analysis below
-% PostAnalysisComparisonStage();
-% PlotSubpopulationStage();
-% PlotPCAStage();
-% PlotGreedySpikesStage();
+%%Post-analysis
+params.general.calibration_mode=1;
+CBPStage('TimingComparison');
+CBPStage('ClusteringComparison');
+CBPStage('Sonification');
+CBPStage('GreedySpike');

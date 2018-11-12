@@ -4,9 +4,11 @@ function CBPStageList
 
     %display names, and categories
     currcategory = [];
+    
+    fprintf('\n**STAGE LIST**');
     for n=1:length(cbpglobals.stages)
-        currname = char(cbpglobals.stages{n}.currfun);
-        nextname = char(cbpglobals.stages{n}.nextfun);
+        currname = char(cbpglobals.stages{n}.name);
+        nextname = char(cbpglobals.stages{n}.next);
 
         %only write a new category header if the category has changed
         if ~isequal(cbpglobals.stages{n}.category, currcategory)
@@ -16,9 +18,9 @@ function CBPStageList
         fprintf(['\n  * ' currname]);
 
         %write arrows to indicate current/next stage
-        if cbpglobals.currstageind == n
+        if cbpglobals.currstagenum == n
             fprintf(['\t<' repmat('-',1,displen-4*floor((length(currname)/4))-1) '  You just finished here']);
-        elseif isequal(char(cbpglobals.stages{cbpglobals.currstageind}.nextfun), currname)
+        elseif isequal(char(cbpglobals.stages{cbpglobals.currstagenum}.nextfun), currname)
             fprintf(['\t<' repmat('=',1,displen-4*floor((length(currname)/4))-1) '  This stage is next']);
         end
     end

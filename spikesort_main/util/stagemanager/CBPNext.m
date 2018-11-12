@@ -1,9 +1,12 @@
 function CBPNext
     global cbpglobals;
-    if isempty(cbpglobals.currstageind)
-        InitStage;
+    
+    if isempty(cbpglobals.currstagenum)
+        InitAllStages;
+    elseif cbpglobals.currstagenum == 0
+        CBPStage(cbpglobals.stages{1}.name);
     else
-        nextstage = cbpglobals.stages{cbpglobals.currstageind}.nextfun;
-        nextstage();
+        assert(~isempty(cbpglobals.stages{cbpglobals.currstagenum}.next), 'ERROR: This is the last stage!');
+        CBPStage(cbpglobals.stages{cbpglobals.currstagenum}.next);
     end
 end

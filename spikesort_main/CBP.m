@@ -10,4 +10,4 @@ eval('global params dataobj','base');
 addpath(genpath(pwd));
 
 %%Begin script. The stages proceed linearly from here
-InitStage;
+InitAllStages;

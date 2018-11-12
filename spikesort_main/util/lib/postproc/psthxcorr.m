@@ -15,29 +15,35 @@ if dropzeros
     inds = inds(nonzero);
 end
 
+%%@now convert to ms
+dts = dts*1000;
+t0 = t0*1000;
+t1 = t1*1000;
+
 if calchist
     nbin = 50;
     histx = linspace(t0, t1, nbin);
     histy = hist(dts, histx);
     histy(1,end) = 2*histy(1,end); % Account for half size bins at end
+    inds = inds/max(inds)*range(histy) + min(histy); %%@ scale dots to match histogram
 end
 
 if show
-    hold off;
-    rax = gca();
-    yyaxis left;
-    rh = plot(dts, inds, '.');
-    set(rax, 'XLim', [t0 t1]);
-    set(rax, 'YLim', [0 length(spiketime2)+1])
+    cla;
+    hold all;
+
+    plot_inds = plot(dts, inds, '.');
+    xlim([t0 t1]);
 
     if calchist
-        set(rh, 'Color', 0.75 .* [1 1 1]);
-        yyaxis right;
+        set(plot_inds, 'Color', 0.75 .* [1 1 1]);
         if ~isempty(histy)
-            plot(rax, histx, histy, 'k');
+            plot(histx, histy, 'k');
             axis tight;
         end
-        set(rax, 'XTick', []);
+        xl = xlim;
+        ticks = xl(1):range(xl)/4:xl(2);
+        xticks(ticks);
     end
 end
 

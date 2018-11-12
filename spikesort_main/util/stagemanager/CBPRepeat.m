@@ -1,5 +1,5 @@
-function CBPNext
+function CBPRepeat
     global cbpglobals;
-    oldstage = cbpglobals.stages{cbpglobals.currstageind}.currfun;
-    oldstage();
+    oldstage = cbpglobals.stages{cbpglobals.currstagenum}.name;
+    CBPStage(oldstage);
 end
