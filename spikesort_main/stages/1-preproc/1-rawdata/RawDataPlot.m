@@ -1,12 +1,14 @@
+% Calibration for raw data loading:
+%   Fig 1a shows the raw data.
+%   Fig 2a plots the Fourier amplitude (averaged across channels).
+
 function RawDataPlot(command)
-    global params dataobj;
+    global CBPdata params CBPInternals;
 
     if nargin == 1 & isequal(command, 'disable')
         DeleteCalibrationTab('Raw Data');
         return;
     end
-
-    rawdata = dataobj.rawdata;
 
 % -------------------------------------------------------------------------
 % Plot Time Domain (top subplot)
@@ -15,47 +17,55 @@ function RawDataPlot(command)
     subplot(2,1,1);
     cla;
 
-    %get channel offset
-    plotChannelOffset = 2*std(rawdata.data(:))*ones(rawdata.nsamples,1)*([1:rawdata.nchan]-1);
-
-    %plot zero-crossing
-    hold on;
-    plot([0 (rawdata.nsamples-1)*rawdata.dt], [0 0], 'k');
-
     %plot channels
-    plot((0:rawdata.nsamples-1)*rawdata.dt, rawdata.data' + plotChannelOffset);
-    hold off
+    plots = {};
+    for n=1:size(CBPdata.rawdata.data,1)
+        plots{end+1} = [];
+        plots{end}.dt = CBPdata.rawdata.dt;
+        plots{end}.y = CBPdata.rawdata.data(n,:)';
+    end
 
+    PyramidZoomMultiPlot(plots);
     RegisterScrollAxes(gca);
-    scrollzoomplot(gca);
-    xlabel('Time (sec)');
-    ylabel('Voltage');
-    title(sprintf('Raw data, nChannels=%d, %.1fkHz', rawdata.nchan, 1/(1000*rawdata.dt)));
+
+    multiplotxlabel('Time (sec)');
+    multiplotylabel('Voltage');
+    multiplottitle(sprintf('Raw data, nChannels=%d, %.1fkHz', CBPdata.rawdata.nchan, 1/(1000*CBPdata.rawdata.dt)));
 
 % -------------------------------------------------------------------------
 % Plot Frequency Domain (bottom subplot)
-    subplot(2,1,2); cla;
+    subplot(2,1,2);
+    cla;
 
-    noiseCol = [1 0.3 0.3];
-    dftMag = abs(fft(rawdata.data,[],2));
-    if (rawdata.nchan > 1.5), dftMag = sqrt(mean(dftMag.^2)); end;
-    maxDFTind = floor(rawdata.nsamples/2);
+    % Get DFT Magnitude. If multiple channels, take the RMS of the magnitude
+    % of each frequency
+    dftMag = abs(fft(CBPdata.rawdata.data,[],2));
+    if (CBPdata.rawdata.nchan > 1)
+        dftMag = sqrt(sum(dftMag.^2));        %%@ RMS - RSS
+    end
+
+    % Add indicator as to which frequencies are going to be filtered, unless
+    % filtering frequencies are empty
+    maxDFTind = floor(CBPdata.rawdata.nsamples/2);
+    minDFTval = min(dftMag(2:maxDFTind));
     maxDFTval = 1.2*max(dftMag(2:maxDFTind));
     hold on;
     if (~isempty(params.filtering.freq))
-      yr = [min(dftMag(2:maxDFTind)), maxDFTval];
-      xr = [0 params.filtering.freq(1)];
-      patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], noiseCol);
-      if (length(params.filtering.freq) >  1)
-          f2 = params.filtering.freq(2);
-          if (f2 < 1/(rawdata.dt*2))
-            xr = [f2 1/(rawdata.dt*2)];
-            patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], noiseCol);
-          end
-      end
-      legend('Frequencies to be filtered');
+        % plot noise polygon
+        noisecolor = [1 0.3 0.3];
+        yr = [minDFTval, maxDFTval];
+        xr = [0 params.filtering.freq(1)];
+        patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], noisecolor);
+        if (length(params.filtering.freq) >  1)
+            f2 = params.filtering.freq(2);
+            if (f2 < 1/(CBPdata.rawdata.dt*2))
+                xr = [f2 1/(CBPdata.rawdata.dt*2)];
+                patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], noisecolor);
+            end
+        end
+        legend('Frequencies to be filtered');
     end
-    plot(([1:maxDFTind]-1)/(maxDFTind*rawdata.dt*2), dftMag(1:maxDFTind));
+    plot(([1:maxDFTind]-1)/(maxDFTind*CBPdata.rawdata.dt*2), dftMag(1:maxDFTind), 'HandleVisibility', 'off');
     hold off;
 
     axis tight; set(gca,'Ylim', [0 maxDFTval]);  set(gca, 'Yscale', 'log');

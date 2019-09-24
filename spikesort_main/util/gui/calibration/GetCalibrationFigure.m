@@ -5,7 +5,7 @@
 % This also auto-updates the title bar when the filename is specified.
 
 function h = GetCalibrationFigure
-    global params dataobj;
+    global CBPdata params CBPInternals;
 
 % ================================================================
 % First, check to see if it already exists and set h accordingly
@@ -14,15 +14,9 @@ function h = GetCalibrationFigure
     else
         h = CreateCalibrationFigure;
     end
-    
 
 % ================================================================
 % Update titlebar in the event a filename is present
-    if isfield(dataobj,'filename')
-        filenameindex = max(strfind(dataobj.filename,'/'));
-        if isempty(filenameindex)
-            filenameindex = 0;
-        end
-        shortname = dataobj.filename(filenameindex+1:end);
-        set(h,'Name', [shortname ' - Calibration']);
+    if isfield(CBPdata,'experimentname')
+        set(h,'Name', [CBPdata.experimentname ' - Calibration']);
     end

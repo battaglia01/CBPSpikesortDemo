@@ -13,18 +13,46 @@
 %            "fir1" and "butter"
 %   - pad  : number of constant-value samples to pad
 %   - order : order of the filter
-%
-% Calibration for filtering:
-%   Fig 1b shows filtered data.  In the next step, noise covariance will be estimated
-%   from below-threshold regions, which are indicated in red. There should be no spikes
-%   in these regions.  Fig 2 shows Fourier amplitude (effects of filtering should be
-%   visible).  Fig 3 shows histogram of the cross-channel magnitudes.  Below-threshold
-%   portion is colored red, and should look like a chi distribution with fitted
-%   variance (green curve).  If spikes appear to be included in the noise segments,
-%   reduce params.whitening.noise_threshold before proceeding, or modify the filtering
-%   parameters in params.filtering, and re-run the filtering step.
 
 function FilterMain
-global params dataobj;
+global CBPdata params CBPInternals;
 
-dataobj.filtering = FilterData(dataobj.rawdata);
+% As starting point, copy all data from "rawdata" stage to "filtering"
+CBPdata.filtering = CBPdata.rawdata;
+
+% Now do filtering. Are filter frequencies specified?
+if ~isempty(params.filtering.freq)
+    % Pad with 0's
+    paddata = PadTrace(CBPdata.filtering.data, params.filtering.pad);
+
+    % Highpass/Bandpass filtering
+    [CBPdata.filtering.data, CBPdata.filtering.coeffs] = ...
+        FilterTrace(paddata, params.filtering, 1/(2*CBPdata.filtering.dt));
+
+    % Remove padding
+    CBPdata.filtering.data = ...
+        CBPdata.filtering.data(:, ...
+            (params.filtering.pad+1):(end-params.filtering.pad));
+
+    % Set sample delay
+    % get max value of impulse response. use that to set delay
+    %%@ NOTE - still an issue if ground truth is offset, such as if it's
+    %%@ left-aligned to waveform start, rather than peak-aligned
+    ir = filter(CBPdata.filtering.coeffs{1}, CBPdata.filtering.coeffs{2}, ...
+                [1 zeros(1,100000)]);
+    CBPdata.filtering.sampledelay = min(find(ir == max(ir)));
+
+else
+    fprintf('No filtering performed (params.filtering.freq was empty).\n');
+    CBPdata.filtering.sampledelay = 0;
+end
+
+% Remove CHANNEL-WISE means
+CBPdata.filtering.data = CBPdata.filtering.data ...
+                         - repmat(mean(CBPdata.filtering.data, 2), 1, ...
+                                  size(CBPdata.filtering.data, 2));
+
+%%@ MIKE'S NOTE - Non-trivial and affects thresholds
+% Scale GLOBALLY across all channels
+dataMag = sqrt(sum(CBPdata.filtering.data.^2, 1)); %%@ RMS - RSS
+CBPdata.filtering.data = CBPdata.filtering.data ./ max(dataMag);

@@ -1,5 +1,9 @@
+% Calibration for CBP results:
+% Fig1: visually compare whitened data, recovered spikes
+% Fig2: residual histograms (raw and cross-channel magnitudes) - compare to Fig3
+
 function SpikeTimingPlot(command)
-    global params dataobj;
+    global CBPdata params CBPInternals;
 
     if nargin == 1 & isequal(command, 'disable')
         DeleteCalibrationTab('CBP Results');
@@ -9,14 +13,21 @@ function SpikeTimingPlot(command)
 % -------------------------------------------------------------------------
 % Set up basics
     %set up local vars to reuse
-    whitening = dataobj.whitening;
-    spike_times = dataobj.CBPinfo.spike_times;
-    spike_amps = dataobj.CBPinfo.spike_amps;
-    spike_traces_init = dataobj.CBPinfo.spike_traces_init;
-    init_waveforms = dataobj.CBPinfo.init_waveforms;
-    snippets = dataobj.CBPinfo.snippets;
-    recon_snippets = dataobj.CBPinfo.recon_snippets;
+    whitening = CBPdata.whitening;
+    spike_times = CBPdata.CBP.spike_times;
+    spike_amps = CBPdata.CBP.spike_amps;
+    spike_traces_init = CBPdata.CBP.spike_traces_init;
+    init_waveforms = CBPdata.CBP.init_waveforms;
+    snippets = CBPdata.CBP.snippets;
+    recon_snippets = CBPdata.CBP.recon_snippets;
     nchan = size(whitening.data,1);
+
+    % get the cells to plot. This is whatever cells are listed as being
+    % plottable in plot_cells, intersected with the total number of cells.
+    true_num_cells = params.clustering.num_waveforms;
+    plot_cells = intersect(CBPInternals.cells_to_plot, 1:true_num_cells);
+    num_cells = length(plot_cells);
+    CheckPlotCells(num_cells);
 
 % -------------------------------------------------------------------------
 % Plot Timeseries data (top-left subplot)
@@ -24,58 +35,80 @@ function SpikeTimingPlot(command)
     subplot(2,2,1);
     cla;
 
-    %calculate offsets
-    plotChannelOffset = 2*(mean(whitening.data(:).^6)).^(1/6)*ones(whitening.nsamples,1)*([1:nchan]-1);
-    plotChannelOffset = plotChannelOffset - mean(plotChannelOffset(1,:));
-
-    %plot channels
-    plot((0:whitening.nsamples-1)*whitening.dt, whitening.data' + plotChannelOffset);
-
+    plots = {};
+    for n=1:size(whitening.data,1)
+        plots{end+1} = [];
+        plots{end}.dt = whitening.dt;
+        plots{end}.y = whitening.data(n,:)';
+        plots{end}.args = {'HandleVisibility', 'off'};
+    end
+    PyramidZoomMultiPlot(plots);
     RegisterScrollAxes(gca);
-    scrollzoomplot(gca);
-    xlabel('Time (sec)');
-    ylabel('Whitened signal (z-scored)');
-    title(sprintf('Data, filtered & whitened, nChannels=%d, %.1fkHz', nchan, 1/(1000*whitening.dt)));
+
+    multiplotxlabel('Time (sec)');
+    multiplotylabel('Whitened signal (z-scored)');
+    multiplottitle(sprintf('Data, filtered & whitened, nChannels=%d, %.1fkHz', nchan, 1/(1000*whitening.dt)));
 
 % -------------------------------------------------------------------------
 % Plot recovered spikes (bottom-left subplot)
 
-    yrg = get(gca,'Ylim');
-    xrg = get(gca,'Xlim');
+    ax = getappdata(getappdata(gca,'panel'),'mp_axes');
+
+    yrg = get(ax(1),'Ylim');
+    xrg = get(ax(1),'Xlim');
 
     subplot(2,2,3);
     cla;
 
-    bandHt = 0.12;
-    yinc = bandHt*(yrg(2)-yrg(1))/length(init_waveforms);
-    clrs = hsv(length(init_waveforms)); %%@ color darkening
-
-    patch([0;(whitening.nsamples-1)*whitening.dt; ...
-        (whitening.nsamples-1)*whitening.dt; 0], ...
-        [yrg(2)*[1;1]; (yrg(1)+(1+bandHt)*(yrg(2)-yrg(1)))*[1;1]], ...
-          0.9*[1 1 1], 'EdgeColor', 0.9*[1 1 1]);
-
-    set(gca,'Ylim', [yrg(1), yrg(2)+bandHt*(yrg(2)-yrg(1))]);
-    hold on
-
     %** Should do proper interpolation
     %%@ Mike note - windowed sinc interpolation?
-    for n=1:length(spike_traces_init)
-        %plot top
-        plot((spike_times{n}-1)*whitening.dt, (yrg(2)+(n-0.5)*yinc)*ones(1,length(spike_times{n})), '.', 'Color', clrs(n,:));
 
-        %plot waveform
-        plot((0:whitening.nsamples-1)*whitening.dt, spike_traces_init{n} + plotChannelOffset, 'Color', clrs(n,:));
+    plots = {};
+    % Add spike traces to plot
+    for n=1:num_cells
+        c = plot_cells(n);
+        for m=1:size(spike_traces_init{c},2)
+            plots{end+1} = [];
+            plots{end}.dt = whitening.dt;
+            plots{end}.y = spike_traces_init{c}(:,m);
+            plots{end}.args = {'HandleVisibility', 'off', ...
+                               'Color', params.plotting.cell_color(c)};
+            plots{end}.chan = m+1;
+        end
     end
 
-    %plot zero-crossing
-    plot((0:whitening.nsamples-1)*whitening.dt, plotChannelOffset, 'k');
-    hold off;
+    % Add zero-crossing to plot
+    %%@! OPT - this doesn't need to be so many samples!! Maybe try "rawplot?"
+    for n=1:nchan
+        plots{end+1} = [];
+        plots{end}.dt = whitening.dt;
+        plots{end}.y = zeros(whitening.nsamples,1);
+        plots{end}.args = {'HandleVisibility', 'off', 'Color', [0 0 0]};
+        plots{end}.chan = n+1;
+    end
 
+    % Add indicators to plot
+    for n=1:num_cells
+        c = plot_cells(n);
+        vertalign = 1-(n-1)/(num_cells-1);
+        plots{end+1} = [];
+        plots{end}.x = (spike_times{c}-1)*whitening.dt;
+        plots{end}.y = vertalign*ones(1,length(spike_times{c}));
+        plots{end}.args = {'.', 'Color', params.plotting.cell_color(c)};
+        plots{end}.chan = 'header';
+        plots{end}.type = 'rawplot';
+    end
+
+    PyramidZoomMultiPlot(plots);
     RegisterScrollAxes(gca);
-    scrollzoomplot(gca);
-    xlabel('Time (sec)');
-    title('Recovered spikes');
+
+    % lastly, scale top axis manually
+    ax = getappdata(getappdata(gca,'panel'),'mp_axes');
+    ylim(ax(1), [-0.5 1.5]);
+    multiplotsubignorefunc(@ylim, 1);
+
+    multiplotxlabel('Time (sec)');
+    multiplottitle('Recovered spikes');
 
 % -------------------------------------------------------------------------
 % Plot Residual Histograms (top-right subplot)
@@ -93,14 +126,12 @@ function SpikeTimingPlot(command)
 
     hold on;
     sigCol = [0 0.8 0];   % NOTE: used to be red
+    %%@ RMS - RSS?
     gh=plot(Xax, max(N(:))*exp(-(Xax.^2)/2), 'Color', sigCol, 'LineWidth', 2);
 
     %%@Would be nice if we could avoid repeated code here - also in
     %%@WhitenPlot, FilterPlot, etc
-    %%@
-    %%@Mike's comment - the below was there. why do we plot(X,N) twice?
-    %%@Just screws up the color
-    %%@plot(Xax,N);
+
     set(gca,'Ylim',rg);
     set(gca, 'Xlim', [-mx mx]);
     hold off;
@@ -117,7 +148,7 @@ function SpikeTimingPlot(command)
 % Plot Histogram of magnitude (bottom-right subplot)
     %Histogram of magnitude
     subplot(2,2,4); cla;
-    mx = max(sqrt(sum(whitening.data.^2,1)));
+    mx = max(sqrt(sum(whitening.data.^2,1)));    %%@ RMS - RSS
     [N,Xax] = hist(sqrt(sum(resid.^2, 2)), mx*[0:100]/100);
     chi = 2*Xax.*chi2pdf(Xax.^2, nchan);
     bar(Xax,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');
@@ -126,5 +157,4 @@ function SpikeTimingPlot(command)
     hold off; set(gca, 'Ylim', yrg); set(gca, 'Xlim', [0 mx]);
     title('Histogram, magnitude with spikes removed');
     legend('Whitened data, spikes removed', 'Chi-distribution, fit to spike-removed data');
-
     %   Fig6: projection into PC space of segments, with spike assignments (as in paper)

@@ -1,15 +1,6 @@
 function CBPReset
-	global dataobj params cbpglobals;
-    
-    % Calibration figure
-    if ishghandle(params.plotting.calibration_figure)
-        close(params.plotting.calibration_figure);
-    end
-    
-    % Params figure
-    if ishghandle(params.plotting.params_figure)
-        close(params.plotting.params_figure);
-    end
-    
-    clear global dataobj params cbpglobals;
+	global CBPdata params CBPInternals;
+    % close all and delete globals
+    close all hidden;
+    clear global CBPdata params CBPInternals dialogresult;
 end

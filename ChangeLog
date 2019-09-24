@@ -195,7 +195,7 @@
 
 	* preproc/PreprocessTrace:
 	- moved mean subtraction, and global rescaling operations into FilterData.m
-	- got rid of optional argument parsing for handling plot options, and used params.general.calibration_mode instead 
+	- got rid of optional argument parsing for handling plot options, and used params.plotting.calibration_mode instead 
 	
 	
 2014-06-12  Eero Simoncelli  <eero@olympia.cns.nyu.edu>

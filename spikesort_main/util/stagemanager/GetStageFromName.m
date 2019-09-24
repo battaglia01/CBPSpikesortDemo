@@ -1,10 +1,10 @@
 % Returns a stage object from the current name
 function stageobj = GetStageFromName(name)
-    global cbpglobals;
+    global CBPInternals;
     stageobj = [];
-    for n=1:length(cbpglobals.stages)
-        if isequal(cbpglobals.stages{n}.name, name)
-            stageobj = cbpglobals.stages{n};
+    for n=1:length(CBPInternals.stages)
+        if isequal(CBPInternals.stages{n}.name, name)
+            stageobj = CBPInternals.stages{n};
             return;
         end
     end

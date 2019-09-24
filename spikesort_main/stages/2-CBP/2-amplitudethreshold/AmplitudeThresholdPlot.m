@@ -1,5 +1,16 @@
+% Fig7 allows interactive adjustment of waveform amplitudes, while visualizing effect
+% on spike train auto- and cross-correlations.  Top row shows amplitude distribution
+% (typical spikes should have amplitude 1), with expected (Gaussian) noise
+% distribution at left, and thresholds indicated by vertical lines.  Threshold lines
+% can be mouse-dragged right or left.  Next row shows spike train autocorrelation
+% that would result from chosen threshold, and can be examined for refractory
+% violations.  Bottom rows show spike train cross-correlations across pairs of cells,
+% and can be examined for dropped synchronous spikes (very common with clustering
+% methods).  Click the "Use thresholds" button to proceed with the chosen values.
+% Click the "Revert" button to revert to the automatically-chosen default values.
+
 function AmplitudeThresholdPlot(command)
-    global params dataobj;
+    global CBPdata params CBPInternals;
 
     if nargin == 1 & isequal(command, 'disable')
         DeleteCalibrationTab('CBP Threshold Adjustment');
@@ -8,129 +19,136 @@ function AmplitudeThresholdPlot(command)
 
 % -------------------------------------------------------------------------
 % Set up basics
-    spike_amps = dataobj.CBPinfo.spike_amps;
-    spike_times = dataobj.CBPinfo.spike_times;
-    amp_thresholds = dataobj.CBPinfo.amp_thresholds;
+    spike_amps = CBPdata.CBP.spike_amps;
+    spike_times_ms = CBPdata.CBP.spike_times_ms;
+    amp_thresholds = CBPdata.amplitude.amp_thresholds;
 
     f = GetCalibrationFigure;
 
-    %%@refactored from opts inputparser
     ampbins = params.amplitude.ampbins;
-    dt = dataobj.whitening.dt;
-    wfnorms = cellfun(@(wf) norm(wf), dataobj.CBPinfo.init_waveforms);
-    true_sp = {};
-    location_slack = params.postproc.spike_location_slack;%%@is this right?
+    dt = CBPdata.whitening.dt;
+    wfnorms = cellfun(@(wf) norm(wf), CBPdata.CBP.init_waveforms);
+    true_sp = CBPdata.amplitude.true_sp;
+    location_slack = params.amplitude.spike_location_slack;
 
-    n = length(spike_amps);
-    setappdata(f, 'spikeamps', spike_amps);
+    % get the cells to plot. This is whatever cells are listed as being
+    % plottable in plot_cells, intersected with the total number of cells.
+    true_num_cells = params.clustering.num_waveforms;
+    plot_cells = intersect(CBPInternals.cells_to_plot, 1:true_num_cells);
+    num_cells = length(plot_cells);
+    CheckPlotCells(num_cells);
 
     % Store initial thresh value
     if length(amp_thresholds) < length(spike_amps)
         error('Not enough initial thresholds provided.');
     end
-    setappdata(f, 'initthresh', amp_thresholds);
-    setappdata(f, 'amp_thresholds', amp_thresholds);
 
     % Modify spiketimes by dt
-    spike_times = cellfun(@(st) st.*dt, spike_times,   'UniformOutput', false);
-    true_sp    = cellfun(@(st) st.*dt, true_sp, 'UniformOutput', false);
+    true_sp = cellfun(@(st) st.*dt, true_sp, 'UniformOutput', false);
     slack = location_slack*dt;
-    setappdata(f, 'spiketimes', spike_times);
-    setappdata(f, 'true_sp', true_sp);
-    setappdata(f, 'location_slack', slack);
 
     % Store initial thresholding
-    threshspiketimes = cell(size(spike_times));
-    for i = 1:n
-        threshspiketimes{i} = spike_times{i}(spike_amps{i} > amp_thresholds(i));
+    threshspiketimes = cell(size(spike_times_ms));
+    for n=1:num_cells
+        c = plot_cells(n);
+        threshspiketimes{c} = spike_times_ms{c}(spike_amps{c} > amp_thresholds(c));
     end
-    setappdata(f, 'threshspiketimes', threshspiketimes);
-
-    v = ver();
-    haveipt = any(strcmp('Image Processing Toolbox', {v.Name}));
-    cols = hsv(n);
-
+    CBPdata.amplitude.thresh_spike_times_ms = threshspiketimes;
 
 % -------------------------------------------------------------------------
 % Set up new tab and panel
-    CreateCalibrationTab('CBP Threshold Adjustment', 'AmplitudeThreshold');
+    t = CreateCalibrationTab('CBP Threshold Adjustment', 'AmplitudeThreshold');
 
     %compute panel position
-    max_n = 4;  %%@magic number, make param later
-
-    p_width = max(n/max_n,1);
-    p_height = max((n+1)/(max_n+1),1);
+    max_n = params.amplitude.maxplotsbeforescroll;
+    p_width = max(num_cells/max_n,1);
+    p_height = max((num_cells+1)/(max_n+1),1);
+    p_left = (1-p_width)/7;           % empirically, this works well
+    p_bottom = 1-p_height-p_left/2;   % empirically, this also works well
 
     %add panel to tab
     parent = get(gca,'Parent');
     p = uipanel(parent,...
-            'Units','normalized', ...
-            'Position',[0 1-p_height p_width p_height], ...
-            'Tag', 'amp_panel');
+                'Units','normalized', ...
+                'Position',[p_left p_bottom p_width p_height], ...
+                'Tag', 'amp_panel');
 
     %create scrollbars
-    if n > max_n
-        uicontrol('Units','normalized',...
-                'Style','Slider',...
-                'Position',[.98,.03,.02,.97],...
-                'Min',0,...
-                'Max',1,...
-                'Value',1,...
-                'visible','on',...
-                'Tag','scrollvert',...
-                'Parent',parent,...
-                'Callback',@(scr,event) scrollvert);
-        uicontrol('Units','normalized',...
-                'Style','Slider',...
-                'Position',[0,0,.98,.03],...
-                'Min',0,...
-                'Max',1,...
-                'Value',0,...
-                'Tag','scrollhoriz',...
-                'Parent',parent,...
-                'Callback',@(scr,event) scrollhoriz);
+    %%@ not needed - left for reference
+    if num_cells > max_n
+%         uicontrol('Units','normalized',...
+%                   'Style','Slider',...
+%                   'Position',[.98,.03,.02,.97],...
+%                   'Min',0,...
+%                   'Max',1,...
+%                   'Value',1,...
+%                   'SliderStep',[0.125 0.25],...
+%                   'visible','on',...
+%                   'Tag','scrollvert',...
+%                   'Parent',parent,...
+%                   'Callback',@(scr,event) scrollvert);
+%         uicontrol('Units','normalized',...
+%                   'Style','Slider',...
+%                   'Position',[0,0,.98,.03],...
+%                   'Min',0,...
+%                   'Max',1,...
+%                   'Value',0,...
+%                   'SliderStep',[0.125 0.25],...
+%                   'Tag','scrollhoriz',...
+%                   'Parent',parent,...
+%                   'Callback',@(scr,event) scrollhoriz);
     end
 
 % -------------------------------------------------------------------------
 % Do all subplotting
-    for i = 1:n
-        subplot(n+1, n, i, 'Parent', p);
+    for n=1:num_cells
+        c = plot_cells(n);
+        subplot(num_cells+1, num_cells, n, 'Parent', p);
         cla;
 
         % Plot spike amplitude histogram
-        [H, X] = hist(spike_amps{i}, ampbins);
-        hh = bar(X,H); set(hh,'FaceColor', cols(i,:), 'EdgeColor', cols(i,:));
-        title(sprintf('Amplitudes, cell %d', i));
-        xl = [0 max([spike_amps{i}(:); 1.5])];
+        if length(spike_amps{c}) ~= 1
+            [H, X] = hist(spike_amps{c}, ampbins);
+        else
+            [H, X] = hist(spike_amps{c}, spike_amps{c}(1) + linspace(-.5,.5,50));
+        end
+        hh = bar(X,H);
+        set(hh, 'FaceColor', params.plotting.cell_color(c), ...
+                'EdgeColor', params.plotting.cell_color(c));
+        title(sprintf('Amplitudes, cell %d', c));
+        xl = [0 max([spike_amps{c}(:); 1.5])];
         xlim(xl);
 
+        % Plot Gaussian on each subplot
         if (~isempty(wfnorms))
             X = linspace(0,xl(2),ampbins);
-            hold on
-            plot(X, max(H)*exp(-((X*wfnorms(i)).^2)/2), 'Color', 0.35*[1 1 1]);
-            %        plot(X, max(H)*exp(-(((X-1)*wfnorms(i)).^2)/2), 'Color', cols(i,:));
-
-            hold off
+            hold on;
+            plot(X, max(H)*exp(-((X*wfnorms(c)).^2)/2), 'Color', 0.35*[1 1 1]);
+            hold off;
         end
 
         % Plot threshold as vertical lines.
-        hold on;
-        yl = get(gca, 'YLim');
+        % Make sure we have the Image Processing Toolbox
+        v = ver();
+        haveipt = any(strcmp('Image Processing Toolbox', {v.Name}));
         if haveipt
-            thresh = amp_thresholds(i);
+            thresh = amp_thresholds(c);
+            yl = get(gca, 'YLim');
             xl = get(gca, 'XLim');
             cnstrfcn = makeConstrainToRectFcn('imline', xl, yl);
+
+            hold on;
             lh = imline(gca, thresh*[1 1], yl, ...
-                            'PositionConstraintFcn', cnstrfcn);
+                             'PositionConstraintFcn', cnstrfcn);
             lh.setColor('black');
             lch = get(lh, 'Children');
             set(lch(1:2), 'HitTest', 'off');
             set(lh, 'HitTest', 'on');
             set(gca, 'HitTest', 'off');
-            %%@ - archived original
-            %%@lh.addNewPositionCallback(@(pos) UpdateThresh(pos(1), i, f));
-            lh.addNewPositionCallback(@(pos) setappdata(f,['imline_pos_' num2str(i)],pos(1)));
-            setappdata(f, ['imline_pos_' num2str(i)], thresh);
+            lh.addNewPositionCallback(@(pos) setappdata(f,['imline_pos_' num2str(c)],pos(1)));
+            setappdata(f, ['imline_pos_' num2str(c)], thresh);
+
+            hold off;
         else
             error('ERROR: Must have the Image Processing Toolbox');
         end
@@ -139,48 +157,50 @@ function AmplitudeThresholdPlot(command)
     end
 
     % Plot initial ACorr/XCorrs
-    for i = 1:n
-        plotACorr(threshspiketimes, i);
-        %if(i==1), xlabel('Time (ms)'); end;
-        for j = (i+1):n
-            plotXCorr(threshspiketimes, i, j);
+    for n=1:num_cells
+        c = plot_cells(n);
+        PlotACorr(threshspiketimes, num_cells, n);
+        for m = (n+1):num_cells
+            PlotXCorr(threshspiketimes, num_cells, n, m);
         end
     end
+    pause(0.01);
+    drawnow;
 
     % Report on performance relative to ground truth if available
     ShowGroundTruthEval(threshspiketimes, f);
 
-    ax = subplot(n+1, n, sub2ind([n n+1], 1, n+1), 'Parent', p);
+    ax = subplot(num_cells+1, num_cells, ...
+                 sub2ind([num_cells num_cells+1], 1, num_cells+1), 'Parent', p);
 
     set(ax, 'Visible', 'off');
     pos = get(ax, 'Position');
     ht = pos(4);
     wsz = get(f, 'Position'); wsz = wsz([3:4]);
-end
 
-% -----------------
-function scrollvert
-   scrollbar = findall(GetCalibrationFigure,'Type','uicontrol','Tag','scrollvert');
-   panel = findall(GetCalibrationFigure,'Tag','amp_panel');
+    % now, after all that, add scrollbars
+    pause(0.01);
+    drawnow;
+    % Get the panel's underlying JPanel object reference
+    jPanel = p.JavaFrame.getGUIDEView.getParent;
 
-   pos = get(panel,'Position');
-   val = get(scrollbar,'value');
+    % Embed the JPanel within a new JScrollPanel object
+    jScrollPanel = javaObjectEDT(javax.swing.JScrollPane(jPanel));
 
-   %%after all is said and done, the above scrolls it correctly
-   pos(2) = (1-pos(4))*val;
+    % Remove the JScrollPane border-line
+    jScrollPanel.setBorder([]);
 
-   set(panel,'Position', pos);
-end
+    % Place the JScrollPanel in same GUI location as the original panel
+    pixelpos = getpixelposition(p);
+    hParent = p.Parent;
 
-% -----------------
-function scrollhoriz
-   scrollbar = findall(GetCalibrationFigure,'Type','uicontrol','Tag','scrollhoriz');
-   panel = findall(GetCalibrationFigure,'Tag','amp_panel');
+    %parentpos = get(t,'InnerPosition');
+    parentpos = getpixelposition(hParent);
+    parentpos(1:2) = 0;
+    [hjScrollPanel, hScrollPanel] = javacomponent(jScrollPanel, parentpos, hParent);
+    hScrollPanel.Units = 'norm';
 
-   pos = get(panel,'Position');
-   val = get(scrollbar,'value');
-
-   pos(1) = (1-pos(3))*val;
-
-   set(panel,'Position', pos);
+    % Ensure that the scroll-panel and contained panel have linked visibility
+    hLink = linkprop([p,hScrollPanel],'Visible');
+    setappdata(p,'ScrollPanelVisibilityLink',hLink);
 end

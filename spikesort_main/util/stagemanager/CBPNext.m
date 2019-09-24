@@ -1,12 +1,13 @@
 function CBPNext
-    global cbpglobals;
-    
-    if isempty(cbpglobals.currstagenum)
-        InitAllStages;
-    elseif cbpglobals.currstagenum == 0
-        CBPStage(cbpglobals.stages{1}.name);
+    global CBPInternals;
+
+    if ~isfield(CBPInternals, 'raninit') || CBPInternals.raninit == false
+        BasicSetup;
+    elseif isempty(CBPInternals.mostrecentstage)
+        CBPStage(CBPInternals.stages{1}.name);
     else
-        assert(~isempty(cbpglobals.stages{cbpglobals.currstagenum}.next), 'ERROR: This is the last stage!');
-        CBPStage(cbpglobals.stages{cbpglobals.currstagenum}.next);
+        assert(~isempty(CBPInternals.mostrecentstage.next), ...
+            'ERROR: This is the last stage!');
+        CBPStage(CBPInternals.mostrecentstage.next);
     end
 end

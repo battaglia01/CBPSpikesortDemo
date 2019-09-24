@@ -1,31 +1,52 @@
 %% ----------------------------------------------------------------------------------
-% CBP Step 3: Re-estimate waveforms
-%
-% Calibration for CBP waveforms:
-% If recovered waveforms differ significantly from initial waveforms, then algorithm
-% has not yet converged.  Execute this and go back to re-run CBP:
-%     init_waveforms = waveforms;
+% CBP Step 4: Re-estimate waveforms
+
 
 function WaveformRefinementMain
-global params dataobj;
+global CBPdata params CBPInternals;
 
-fprintf('***CBP step 3: Re-estimate waveforms\n'); %%@New
-
-CBPinfo = dataobj.CBPinfo;
+% Now that we've updated the thresholds, compute the final spike waveforms.
+% Store in CBPdata.waveformrefinement
+CBPdata.waveformrefinement = [];
+CBPdata.waveformrefinement.final_waveforms = {};
 
 % Compute waveforms using regression, with interpolation (defaults to cubic spline)
-nlrpoints = (params.rawdata.waveform_len-1)/2;
-CBPinfo.final_waveforms = cell(size(CBPinfo.spike_times));
-for i = 1:numel(CBPinfo.spike_times)
-    %%Is this why? You can only increase the threshold, not lower it
-    sts = CBPinfo.spike_times{i}(CBPinfo.spike_amps{i} > CBPinfo.amp_thresholds(i)) - 1;
-    CBPinfo.final_waveforms{i} = CalcSTA(dataobj.whitening.data', sts, [-nlrpoints nlrpoints]);
+nlrpoints = (params.general.spike_waveform_len-1)/2;
+for n=1:length(CBPdata.CBP.spike_times)
+    %%@ original left for reference. Why are we subtracting 1???
+    %%@ sts = CBPdata.CBP.spike_times{n}(CBPdata.CBP.spike_amps{n} > ...
+    %%@                                  CBPdata.amplitude.amp_thresholds(n)) - 1;
+    %%@ CBPdata.CBP.final_waveforms{n} = CalcSTA(CBPdata.whitening.data', ...
+    %%@                                              sts, [-nlrpoints nlrpoints])';
+
+    % get a bitmask of all the spike indices that exceed threshold level
+    amplitudemask = ...
+        CBPdata.CBP.spike_amps{n} > CBPdata.amplitude.amp_thresholds(n);
+
+    % get thresholded versions of spike times, amps, etc
+    CBPdata.waveformrefinement.spike_times_thresholded{n} = ...
+        CBPdata.CBP.spike_times{n}(amplitudemask);
+    CBPdata.waveformrefinement.spike_times_ms_thresholded{n} = ...
+        CBPdata.CBP.spike_times_ms{n}(amplitudemask);
+    CBPdata.waveformrefinement.spike_amps_thresholded{n} = ...
+        CBPdata.CBP.spike_amps{n}(amplitudemask);
+
+    % Do the interpolation and get the final waveforms
+    %%@ Note the - 1 below in the second arg - this is the way it
+    %%@ originally was, not sure why. Just leaving it like this.
+    CBPdata.waveformrefinement.final_waveforms{n} = ...
+        CalcSTA(CBPdata.whitening.data', ...
+                CBPdata.waveformrefinement.spike_times_thresholded{n} - 1, ...
+                [-nlrpoints nlrpoints]);
 end
 
-CBPinfo.first_pass = false;
-dataobj.CBPinfo = CBPinfo;
+% create thresholded spike traces for use in postproc
+CBPdata.waveformrefinement.spike_traces_thresholded = ...
+    CreateSpikeTraces(CBPdata.waveformrefinement.spike_times_thresholded, ...
+                      CBPdata.waveformrefinement.spike_amps_thresholded, ...
+                      CBPdata.waveformrefinement.final_waveforms, ...
+                      CBPdata.whitening.nsamples, ...
+                      CBPdata.whitening.nchan);
 
-fprintf('To do another iteration of CBP, type\n');
-fprintf('    CBPNext');
-fprintf('\nTo finish CBP and move onto post-analysis, type\n');
-fprintf('    CBPReview\n');
+% increment the number of passes to waveform refinement - should match CBP
+CBPdata.waveformrefinement.num_passes = CBPdata.CBP.num_passes;

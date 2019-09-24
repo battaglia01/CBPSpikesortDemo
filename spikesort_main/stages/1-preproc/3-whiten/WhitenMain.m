@@ -13,29 +13,49 @@
 %   - noise_threshold: noise zones must have cross-channel L2-norm less than this.
 %   - min_zone_len: noise zones must have duration of at least this many samples.
 %   - num_acf_lags: number of samples over which auto-correlation is estimated.
-%
-% Calibration for whitening:
-% Fig 4: original vs. whitened autocorrelation(s), should be close to a delta
-%   function (1 at 0, 0 elsewhere).  If not, try increasing
-%   params.whitening.num_acf_lags.  If auto-correlation is noisy, there may not be
-%   enough data samples for estimation.  This can be improved by a. increasing
-%   params.whitening.noise_threshold (allow more samples) b. decreasing
-%   params.whitening.num_acf_lags c. decreasing params.whitening.min_zone_len (allow
-%   shorter noise zones).
-% Fig 5 (multi-electrodes only): cross-channel correlation, should look like the
-%   identity matrix. If not, a. increase params.whitening.num_acf_lags or b. increase
-%   params.whitening.min_zone_len .  Note that this trades off with the quality of
-%   the estimates (see prev).
-% Fig 1: Highlighted segments of whitened data (green) will be used to estimate
-%   waveforms in the next step.  These should contain spikes (and non-highlighted
-%   regions should contain background noise).  Don't worry about getting all the
-%   spikes: these are only used to initialize the waveforms!
-% Fig 3, Top: Histograms of whitened channels - central portion should look
-%   Gaussian. Bottom: Histogram of across-channel magnitude, with magnitudes of
-%   highlighted segments in green.  If lots of spikes are in noise regions, reduce
-%   params.whitening.noise_threshold
+% FIXME?: Appears to clip rawdata
+%%@ (Mike's note - old FIXME, may be better now)
 
 function WhitenMain
-global params dataobj;
+global CBPdata params CBPInternals;
 
-dataobj.whitening = WhitenNoise(dataobj.filtering);
+% As starting point, copy all data from "filtering" stage to "whitening"
+CBPdata.whitening = CBPdata.filtering;
+
+% Now preprocess extracellularly recorded voltage trace by estimating noise
+% and whitening if desired.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Noise zone estimation
+
+% Merge channels into one by taking pointwise RMS of data
+%%@ (should really allow a more general p-norm...)
+data_rms = sqrt(sum(CBPdata.filtering.data .^ 2, 1));  %%@ RMS - RSS
+
+% Estimate noise zones
+min_zone_len = params.whitening.min_zone_len;
+if isempty(min_zone_len)
+    min_zone_len = floor(params.general.spike_waveform_len / 2);
+end
+noise_zone_idx = GetNoiseZones(data_rms, ...
+                               params.whitening.noise_threshold, ...
+                               min_zone_len);
+
+% Test if noise covariance matrix is singular
+if(isempty(noise_zone_idx))
+    error("WHITENING ERROR: No noise zones found! This often happens if the threshold is set too high.\n" + ...
+          "Increase params.whitening.noise_threshold and try again!", "");
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Whiten trace if desired
+[CBPdata.whitening.data, CBPdata.whitening.old_acfs, ...
+ CBPdata.whitening.whitened_acfs, CBPdata.whitening.old_cov, ...
+ CBPdata.whitening.whitened_cov] = ...
+    WhitenTrace(CBPdata.filtering.data', ...
+                noise_zone_idx, ...
+                params.whitening.num_acf_lags, ...
+                params.whitening.reg_const);
+
+CBPdata.whitening.noise_sigma = 1;
+CBPdata.whitening.noise_zone_idx = noise_zone_idx;

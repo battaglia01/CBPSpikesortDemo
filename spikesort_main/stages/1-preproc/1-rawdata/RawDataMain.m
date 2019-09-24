@@ -1,40 +1,17 @@
 %==========================================================================
+%%@ FIXME - CHANGE THIS FOR NEW FORMAT
 % Step 1: Load raw electrode data
 % Load an example data set, including raw data, the timestep, and
 % (optionally) ground truth spike times.
 %
-% Calibration for raw data loading:
-%   Fig 1a shows the raw data.
-%   Fig 2a plots the Fourier amplitude (averaged across channels).
+% Load raw electrode data from a file, and adjust any parameters
+% that need to be specialized for that data set.
 
 function RawDataMain
-global params dataobj
-
-try
-    fprintf('Filename detected in params.general.filename:\n');
-    fprintf('  params.general.filename = ''%s''\n\n', params.general.filename);
-    fprintf('* If this is an error, change params.general.filename.\n');
-    fprintf('* If this is from an older, stale version of params, remember\n');
-    fprintf('  that you need to type `clear global params` to reset.\n');
-    datasetName = params.general.filename;
-catch
-    fprintf('No filename detected in params.general.filename\n');
-    fprintf('  Please enter filename below, or for demo data sets,\n');
-    fprintf('  type in ''Quiroga1'' or ''Harris1''\n');
-    fprintf('  If you already have ''data'' and ''dt'' variables\n');
-    fprintf('  loaded in the workspace, type ''workspace''\n\n');
-    datasetName = input('Enter dataset: ','s');
-    % Pick one data set below by uncommenting the assignment to datasetName:
-
-    % Simulated data example: Single electrode, from: Quiroga et. al., Neural
-    % Computation, 16:1661-1687, 2004
-    % datasetName = 'Quiroga1';
-
-    % Real data example: Tetrode + one ground-truth intracellular electrode, rat
-    % hippocampus, from: Harris et. al., J. Neurophysiology, 84:401-414, 2000
-    % datasetName = 'Harris1';
+global CBPdata params CBPInternals;
+    % All work is now done in ImportFileDialog, which is called in CBPBegin.m
+    % This is split off from the main RawDataStage so we can:
+    % 1. Call it in batch processing
+    % 2. Let the user cancel in the GUI if they don't want CBP
+    % As a result, this function is just for plotting now.
 end
-dataobj.rawdata = LoadRawData(datasetName);
-
-%put filename in data obj
-dataobj.filename = params.general.filename;

@@ -1,0 +1,99 @@
+% Creates the status bar. You probably don't want to call this directly,
+% but rather GetCalibrationStatus (which calls this).
+
+function h = CreateCalibrationStatus
+    global params;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% MAIN PANEL
+
+    h = uipanel(figure(params.plotting.calibration_figure), ...
+        'Tag', 'calibration_sb', 'Position', [0 0 1 0.05]);
+
+    repeatbutton = uicontrol(h, 'Tag', 'calibration_sb_repeat', ...
+                                'Style', 'pushbutton', ...
+                                'FontSize', 14, ...
+                                'String', 'Repeat', ...
+                                'Units', 'normalized', ...
+                                'Position', [0 0 0.25 1], ...
+                                'Callback', @(varargin) CBPRepeat);
+
+    nextbutton   = uicontrol(h, 'Tag', 'calibration_sb_next', ...
+                                'Style', 'pushbutton', ...
+                                'FontSize', 14, ...
+                                'String', 'Next', ...
+                                'Units', 'normalized', ...
+                                'Position', [0.25 0 0.25 1], ...
+                                'Callback', @(varargin) CBPNext);
+
+    reviewbutton = uicontrol(h, 'Tag', 'calibration_sb_review', ...
+                                'Style', 'pushbutton', ...
+                                'FontSize', 14, ...
+                                'String', 'Go to Post-Analysis', ...
+                                'Units', 'normalized', ...
+                                'Position', [0.5 0 0.25 1], ...
+                                'Callback', @(varargin) CBPReview);
+
+    optionbutton = uicontrol(h, 'Tag', 'calibration_sb_options', ...
+                                'Style', 'pushbutton', ...
+                                'FontSize', 14, ...
+                                'String', 'Options', ...
+                                'Units', 'normalized', ...
+                                'Position', [0.85 0 0.15 1]);
+    RegisterTag(repeatbutton);
+    RegisterTag(nextbutton);
+    RegisterTag(reviewbutton);
+    RegisterTag(optionbutton);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CONTEXT MENU
+
+    % Now create the context menu
+    cm = uicontextmenu(gcf, 'Tag', 'calibration_sb_contextmenu');
+    RegisterTag(cm);
+
+    set(optionbutton, 'Callback', @(varargin) popupmenu(cm));
+    buttonpos = get(optionbutton, 'Position');
+
+    % import
+    importmenu = uimenu('Parent', cm, ...
+        'Label', '<html><font size=14>New Session...</font></html>', ...
+        'Callback', @(varargin) menuchoice('newsession'));
+
+    % export
+    exportmenu = uimenu('Parent', cm, ...
+        'Label', '<html><font size=14>Export...</font></html>', ...
+        'Callback', @(varargin) menuchoice('export'));
+
+    % params
+    paramsmenu = uimenu('Parent', cm, ...
+        'Label', '<html><font size=14>Change Parameters...</font></html>', ...
+        'Callback', @(varargin) menuchoice('params'));
+
+
+    % Note - due to MATLAB bug, if we set the component as Visible=off
+    % during uicontrol creation, it will have the wrong look and feel
+    % when we turn it back on. So we set it after
+    set(reviewbutton, 'Visible', 'off');
+end
+
+function menuchoice(choice)
+    switch choice
+        case 'newsession'
+            CBPBegin;    % Note this is the "initial" CBP script
+        case 'export'
+            ExportFileDialog;
+        case 'params'
+            GetParamsFigure;
+        otherwise
+            error('INTERNAL ERROR: invalid menu choice');
+    end
+end
+
+function popupmenu(cm)
+    fig = get(cm, 'Parent');
+    buttonpos = getpixelposition(LookupTag('calibration_sb_options'));
+    figurepos = get(fig, 'Position');
+    newpos = [buttonpos(1) (buttonpos(2)+buttonpos(4))];
+    set(cm, 'Position', newpos, 'Visible', 'on');
+end
