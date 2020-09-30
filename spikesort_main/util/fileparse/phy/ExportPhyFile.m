@@ -30,7 +30,7 @@ function ExportPhyFile(filename)
     [dir, name, ext] = fileparts(filename);
     filedir = dir + "/" + name;
     nchan = CBPdata.whitening.nchan;
-    spike_times_thresholded = CBPdata.waveformrefinement.spike_times_thresholded;
+    spike_time_array_thresholded = CBPdata.waveformrefinement.spike_time_array_thresholded;
     spike_amps_thresholded = CBPdata.waveformrefinement.spike_amps_thresholded;
     final_waveforms = CBPdata.waveformrefinement.final_waveforms;
 
@@ -97,9 +97,9 @@ function ExportPhyFile(filename)
     % we will offset each spike ID by 1, so the first spike is #0.
     % we will also sort so they are in ascending time order
     allspikes = [];
-    for n=1:length(spike_times_thresholded)
-        numspikes = length(spike_times_thresholded{n});
-        allspikes = [repmat(n-1,numspikes,1) spike_times_thresholded{n} spike_amps_thresholded{n}];
+    for n=1:length(spike_time_array_thresholded)
+        numspikes = length(spike_time_array_thresholded{n});
+        allspikes = [repmat(n-1,numspikes,1) spike_time_array_thresholded{n} spike_amps_thresholded{n}];
     end
     allspikes = sortrows(allspikes, 2);
 
@@ -109,8 +109,8 @@ function ExportPhyFile(filename)
     % amplitudes.npy - [nSpikes, ] double vector with the amplitude scaling factor that was applied to the template when extracting that spike
     writeNPY(allspikes(:,3), filedir + "/amplitudes.npy");
 
-    % spike_times.npy - [nSpikes, ] uint64 vector giving the spike time of each spike in samples. To convert to seconds, divide by sample_rate from params.py.
-    writeNPY(uint64(round(allspikes(:,2))), filedir + "/spike_times.npy");
+    % spike_time_array.npy - [nSpikes, ] uint64 vector giving the spike time of each spike in samples. To convert to seconds, divide by sample_rate from params.py.
+    writeNPY(uint64(round(allspikes(:,2))), filedir + "/spike_time_array.npy");
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -155,7 +155,7 @@ function ExportPhyFile(filename)
     % pc_features.npy - [nSpikes, nFeaturesPerChannel, nPCFeatures] single matrix giving the PC values for each spike. The channels that those features came from are specified in pc_features_ind.npy. E.g. the value at pc_features[123, 1, 5] is the projection of the 123rd spike onto the 1st PC on the channel given by pc_feature_ind[5].
     %  We will have to reconstruct this using a per-channel PCA with the CBP
     %  "snippets". For now, try saying there are 0 PC's
-    pc_features = zeros(length(spike_times_thresholded), 0, 0);
+    pc_features = zeros(length(spike_time_array_thresholded), 0, 0);
     writeNPY(pc_features, filedir + "/pc_features.npy");
 
     % pc_feature_ind.npy - [nTemplates, nPCFeatures] uint32 matrix specifying which pcFeatures are included in the pc_features matrix.
@@ -164,7 +164,7 @@ function ExportPhyFile(filename)
 
     % template_features.npy - [nSpikes, nTempFeatures] single matrix giving the magnitude of the projection of each spike onto nTempFeatures other features. Which other features is specified in template_feature_ind.npy
     %   Just leaving blank for now...
-    template_features = zeros(length(spike_times_thresholded), 0);
+    template_features = zeros(length(spike_time_array_thresholded), 0);
     writeNPY(template_features, filedir + "/template_features.npy");
 
     % template_feature_ind.npy - [nTemplates, nTempFeatures] uint32 matrix specifying which templateFeatures are included in the template_features matrix.

@@ -1,6 +1,10 @@
 % Get principal components accounting for desired percent variance
 % Return the PCs as well as the projections of the data on to these PCs
 % (PX)
+%
+%%@ Note that we keep the PCs in the same format that MATLAB does: the
+%%@ original array "X" has the vectors of snippets as *columns*, whereas the
+%%@ result "XProj" has the PC's as *rows*.
 function [PCs, XProj] = TruncatePCs(X, percent_variance)
 fprintf('Doing PCA...');
 % Get PCs
@@ -14,7 +18,9 @@ else
     Xproj = Xproj + repmat(origin, size(Xproj,1), 1);
 end
 
-
+%%@ Mike's note - this seems unnecessary, as the PCs are sorted by
+%%@ descending variance by default, but this may be necessary for backwards
+%%@ compatibility, so we'll keep it
 [latent sorted_idx] = sort(latent, 'descend');
 PCs = PCs(:,sorted_idx);
 Xproj = Xproj(:, sorted_idx);

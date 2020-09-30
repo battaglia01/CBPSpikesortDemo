@@ -5,7 +5,7 @@ function [transform_params, magnitudes, info] = ...
                               lambda, ...
                               spacings, ...
                               info, pars)
-                          
+
 
 % Polar 1D CBP implementation to be used with cbp_core2.m
 % Chaitanya Ekanadham 10/13/2011
@@ -34,7 +34,7 @@ function [transform_params, magnitudes, info] = ...
 %                  the basis dictionary is constructed.
 %    new_weights : new weights to be used in the next iteration
 %                  when estimating locations/magnitudes.
-%    raw_coeffs : raw coefficients from optimization that can be 
+%    raw_coeffs : raw coefficients from optimization that can be
 %                 left-multiplied by Dictionary to get a reconstruction of
 %                 the data.
 
@@ -68,15 +68,15 @@ if (~exist('info', 'var') || ~isfield(info, 'Dictionary') || isempty(info.Dictio
         info.grid_points = ...
             createGridPointsUniform(size(data), spacings);
     end
-    
+
     % Construct the full dictionary on the grid points.
     info.Dictionary = construct_interp_dictionary(Features, ...
         size(data), 3, @polar_1D_base_interp, spacings, @zshift, ...
-        info.grid_points);        
+        info.grid_points);
 end
 
 
-% Construct vectors that specify the weights lambda, the radial info, and 
+% Construct vectors that specify the weights lambda, the radial info, and
 % the angular info for each triplet of coefficients.
 num_blocks_per_feature = cellfun(@(C) size(C,1), info.grid_points);
 lambda_vec = multirep(lambda(:), num_blocks_per_feature);
@@ -94,7 +94,7 @@ if (isfield(info, 'weights') && ~isempty(info.weights))
                length(info.weights), length(lambda_vec));
     end
     lambda_vec = info.weights;
-    restrict_idx = abs(info.weights) < Inf;  
+    restrict_idx = abs(info.weights) < Inf;
     if (sum(restrict_idx) < 2)
         if (pars.debug_mode)
             fprintf('Single coefficient: zeroing out weights!\n');
@@ -103,7 +103,7 @@ if (isfield(info, 'weights') && ~isempty(info.weights))
     end
     using_old_weights = true;
 else
-    restrict_idx = true(length(lambda_vec), 1);    
+    restrict_idx = true(length(lambda_vec), 1);
     using_old_weights = false;
 end
 
@@ -121,14 +121,14 @@ if (~using_old_weights && ...
         fprintf('Prefiltering: eliminated %d of %d atom groups.\n', ...
                 sum(restrict_idx & ~prefilter_idx), ...
                 sum(restrict_idx));
-    end    
+    end
     restrict_idx = restrict_idx & prefilter_idx;
 end
 
 if (~using_old_weights && ...
     isfield(pars, 'greedy_p_value') && pars.greedy_p_value > 0)
     % Check if we can use just one coefficient (maximally correlated one)
-    % to get the residual to be very small, i.e. 
+    % to get the residual to be very small, i.e.
     % The squared norm of the residual should be Chi-Squared with
     % size(input, 1) degrees of freedom. If the probability of the residual
     % being greater then computed value is < greedy_p_value, then greedy is
@@ -149,7 +149,7 @@ if (~using_old_weights && ...
         greedy_idx = GetPolarBlockIndex(info.grid_points, ...
                                         size(data, 1), ...
                                         best_feature_idx, ...
-                                        best_time_idx);                                    
+                                        best_time_idx);
         if (pars.debug_mode)
             fprintf('Restricting to 1 index: %d corresponding to', greedy_idx);
             fprintf('feature %d, time %d\n', best_feature_idx, best_time_idx);
@@ -162,7 +162,7 @@ if (~using_old_weights && ...
 %             greedy_soln(nz_idx(sub_idx), :) = ...
 %                 Features{best_feature_idx}(sub_idx, :);
 %             plot([data, greedy_soln], '.-', 'LineWidth', 2);
-%             set(gca, 'FontSize', 24);            
+%             set(gca, 'FontSize', 24);
 %             title(sprintf('p-value = %0.3f', p_value));
         end
     	restrict_idx = false(size(restrict_idx));
@@ -225,7 +225,7 @@ info.raw_coeffs = reshape([c_coeffs, u_coeffs, v_coeffs]', [], 1);
                             info.grid_points, ...
                             spacings, ...
                             info.thetas, ...
-                            pars.magnitude_threshold);
+                            pars.min_valid_magnitude_threshold);
 1;
 if (pars.num_reweights > 0)
     % set the weights for the next iteration, if there is one.

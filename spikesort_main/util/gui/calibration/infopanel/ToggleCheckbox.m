@@ -14,11 +14,16 @@ function out = ToggleCheckbox(parent, varargin)
         set(out, 'UserData', 0);
     end
     
-    % initialize the toggle string (√ or nothing)
+    % initialize the toggle string:
+    % Either nothing, or check character
     updateToggleString(out);
 end
 
 function updateToggleString(src)
+    % this is the "square root" character, which looks like a check.
+    % Unicode has explicit check characters, but this was chosen for good
+    % compatibility
+    checksign = char(8730);
     % if background color is too dark, invert checkbox
     backcolor = get(src, 'BackgroundColor');
     lightness = rgb2gray(backcolor);
@@ -33,7 +38,7 @@ function updateToggleString(src)
     if val == 0
         set(src,'String','');
     else
-        set(src,'String','√');
+        set(src,'String',checksign);
     end
 end
 

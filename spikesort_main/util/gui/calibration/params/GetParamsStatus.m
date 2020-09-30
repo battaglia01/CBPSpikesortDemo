@@ -3,9 +3,9 @@
 
 function h = GetParamsStatus
     global params;
-    
-    h = findobj('Tag','params_sb');
-    if isempty(h)
+
+    h = LookupTag('params_sb');
+    if isempty(h) || ~isvalid(h)
         h = CreateParamsStatus;
     end
 end

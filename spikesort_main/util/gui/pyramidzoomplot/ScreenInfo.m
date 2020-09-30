@@ -3,7 +3,11 @@
 function MonitorPositions = ScreenInfo
     ScreenPixelsPerInch = java.awt.Toolkit.getDefaultToolkit().getScreenResolution();
     ScreenDevices = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices();
-    MainScreen = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getScreen()+1;
+%%@ FIXME
+%%@ This no longer works on Mac R2019, so as a fallback, just assume we're
+%%@ on screen #1. This may cause problems for multiple monitors, but is
+%%@ probably alright for now
+    MainScreen = 1;
     MainBounds = ScreenDevices(MainScreen).getDefaultConfiguration().getBounds();
     MonitorPositions = zeros(numel(ScreenDevices),4);
     for n = 1:numel(ScreenDevices)

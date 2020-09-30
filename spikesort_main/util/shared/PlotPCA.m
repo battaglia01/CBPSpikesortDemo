@@ -35,7 +35,7 @@ function PlotPCA(X, XProj, assignments)
       projCentroids(:, n) = mean(XProj(spikeInds,:)', 2);
       counts(n) = length(spikeInds);
       distances(spikeInds) = sqrt(sum((XProj(spikeInds,:)' - ...
-           repmat(projCentroids(:,n),1,counts(n))).^2))';     %%@ RMS - RSS
+           repmat(projCentroids(:,n),1,counts(n))).^2))';     %%@ RMS vs L2?
     end
 
 % -------------------------------------------------------------------------

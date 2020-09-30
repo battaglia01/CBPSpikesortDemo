@@ -39,19 +39,48 @@ function [snippets, breaks, snippet_lens, snippet_centers, IDX] = ...
 %       BWCONNCOMP
 %
 % FIXME?: Return centers, lens of breaks as well...
-% ^ MIKE'S NOTE - do we need this?
+%%@ ^ MIKE'S NOTE - do we need this?
 
 
 % Take a moving average
 % NOTE: transpose makes this a row vector again
-signal_rms = smooth(sqrt(sum(signal.^2, 1)), pars.smooth_len)';    %%@ RMS - RSS
+%%@ Mike's note: this "rms" was originally a sum instead of a mean. I changed it
+%%@ to a root-mean-squared to make everything cleaner.
+% signal_rms = smooth(sqrt(sum(signal.^2, 1)), pars.smooth_len)'; - % old
+%%@ Also, for various reasons, it is easier if we do the smoothing before the
+%%@ sqrt. Then we are simply taking an RMS of N (presumably Gaussian) samples,
+%%@ and can easily convert between Linf and RMS-based thresholds
+signal_rms = sqrt(smooth(mean(signal.^2, 1), pars.smooth_len))';    %%@ RMS vs L2?
 
 % Identify dead zones
+%%@ Mike's note: the following was originally left commented as a reference.
+%%@ just leaving it here
 %dof = size(signal,1);
 %chiMean = sqrt(2)*gamma((dof+1)/2)/gamma(dof/2);
 %chiVR = dof - chiMean^2;
 %rms_above_thresh = signal_rms > (chiMean + pars.silence_threshold*sqrt(chiVR));
-rms_above_thresh = signal_rms > pars.silence_threshold*std(signal_rms);
+
+%%@ Mike's note: originally, we had the following line of code:
+%%@    rms_above_thresh = signal_rms > pars.silence_threshold*std(signal_rms);
+%%@ where the "signal_rms" was, as mentioned above, a "root-sum-squared" rather
+%%@ than a root-mean-squared.
+%%@ This does cancel out that "signal_rms" was originally a "root-sum-squared"
+%%@ rather than a "root-mean squared," since we divide by std(signal_rms).
+%%@ However, it s a strange choice of "units" for the threshold - as a percentage of
+%%@ the std of signal_rms. Assuming a Gaussian signal, then we have that
+%%@ signal_rms is chi-distributed, so it is strange to set the threshold as a
+%%@ percentage of the standard deviation of this chi distribution (which will
+%%@ be some strange expression involving the gamma function).
+%%@ Instead, let's make it so that thresholds are expressed as an expected *max*
+%%@ or *Linf* value, for compatibility with different spike sorters, and then
+%%@ just scale that to make it an expected rms threshold. We are taking an RMS
+%%@ of the current sample at each channel, and then an "rms-smoothing" of
+%%@ pars.smooth_len consecutive samples, so the total number of samples we
+%%@ are rms'ing is the product of pars.smooth_len * size(signal,1).
+rms_above_thresh = signal_rms > ...
+        ConvertLinfThresholdToRMS(pars.silence_threshold, ...
+                                  pars.smooth_len * size(signal,1));
+
 dead_zone_idx = FindConsecutiveZeroes(rms_above_thresh, pars.min_silence_len);
 
 

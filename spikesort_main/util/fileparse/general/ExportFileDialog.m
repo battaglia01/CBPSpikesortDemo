@@ -23,10 +23,17 @@ function ExportFileDialog
                 CBPInternals.filetypes.export{indx}.desc);
 
         % Once we have the file info, call the subparser,
-        % and run initialize session (pass filename)
+        % and run initialize session (pass filename).
+        % Also disable calibration status if we're in calibration mode
+        if params.plotting.calibration_mode
+            DisableCalibrationStatus;
+        end
         SubParserFunc = CBPInternals.filetypes.export{indx}.funchandle;
         SubParserFunc(filename);
+        fprintf("Done!\n");
+        EnableCalibrationStatus;
     catch err
+        EnableCalibrationStatus;    % make sure we re-enable no matter what
         errordlg(sprintf("There was an error while writing to the file.\n" + ...
                          "\n" + ...
                          "Error message is below:\n" + ...

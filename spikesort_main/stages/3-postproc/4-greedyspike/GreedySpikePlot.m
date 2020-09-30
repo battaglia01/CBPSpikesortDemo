@@ -13,8 +13,9 @@ function GreedySpikePlot(command)
 
 % -------------------------------------------------------------------------
 % Check that we have ground truth
-    if ~isfield(CBPdata.groundtruth, 'true_sp')
-        t=CreateCalibrationTab('Greedy Spike Plot', 'GreedySpike');
+    if ~isfield(CBPdata.groundtruth, 'spike_time_array_processed') || ...
+       length(CBPdata.groundtruth.spike_time_array_processed) == 0
+        t = CreateCalibrationTab('Greedy Spike Plot', 'GreedySpike');
         cla('reset');
         axis off;
         uicontrol('Style', 'text', ...
@@ -29,9 +30,14 @@ function GreedySpikePlot(command)
     end
 
     %%@ GENERAL CLEAN UP
-    est_times = CBPdata.CBP.spike_times;
-    est_amps = CBPdata.CBP.spike_amps;
-    true_times = CBPdata.groundtruth.true_sp;
+    %%@ Mike's note - this originally referenced the pre-refinement,
+    %%@ pre-thresholded CBP raw spike times - left for reference but
+    %%@ updated to waveform refinement
+%     est_times = CBPdata.CBP.spike_time_array;
+%     est_amps = CBPdata.CBP.spike_amps;
+    est_times = CBPdata.waveformrefinement.spike_time_array_thresholded;
+    est_amps = CBPdata.waveformrefinement.spike_amps_thresholded;
+    true_times = CBPdata.groundtruth.spike_time_array_processed;
     location_slack = params.amplitude.spike_location_slack;
 
     CreateCalibrationTab('Greedy Spike Plot', 'GreedySpike');
@@ -48,6 +54,14 @@ function GreedySpikePlot(command)
         if isempty(true_times{i})
             continue;
         end
+        
+        % Also, if this "true" spike is greater than the number of
+        % estimated cells (meaning we had more true ID #'s than estimated
+        % spike ID #'s), skip
+        if i > length(est_times)
+            continue;
+        end
+        
         %else, add this to the list of cells plotted
         cells_plotted(end+1) = i;
 

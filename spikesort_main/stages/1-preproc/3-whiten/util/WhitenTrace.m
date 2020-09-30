@@ -32,7 +32,7 @@ function [ECwhitened, old_acfs, whitened_acfs, ...
     old_acfs = cell(num_channels, 1);
     whitened_acfs = cell(size(old_acfs));
 
-    for channel_num = 1 : num_channels
+    for channel_num=1:num_channels
         % Construct noise samples for this channel.
     	noise = cell(size(noise_zone_idx));
         for zone_num = 1 : length(noise)

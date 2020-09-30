@@ -41,7 +41,7 @@ function RawDataPlot(command)
     % of each frequency
     dftMag = abs(fft(CBPdata.rawdata.data,[],2));
     if (CBPdata.rawdata.nchan > 1)
-        dftMag = sqrt(sum(dftMag.^2));        %%@ RMS - RSS
+        dftMag = sqrt(sum(dftMag.^2));        %%@ RMS vs L2?
     end
 
     % Add indicator as to which frequencies are going to be filtered, unless

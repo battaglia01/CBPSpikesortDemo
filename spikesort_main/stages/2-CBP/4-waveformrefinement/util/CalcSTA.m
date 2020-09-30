@@ -1,6 +1,9 @@
 function sta = CalcSTA(data, spiketimes, window, varargin)
 % Memory hungry, but vectorized for speed
 % Assumes spiketimes are sorted, data is col vectors per electrode
+%
+%%@ Mike's note: this seems to take all the "snippets" for the waveform ID
+%%@ and averages them to get the canonical waveform
 
 opts = inputParser();
 opts.addParamValue('dt', 1);

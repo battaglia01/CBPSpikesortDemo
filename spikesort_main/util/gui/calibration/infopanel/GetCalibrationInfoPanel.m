@@ -4,7 +4,7 @@
 function h = GetCalibrationInfoPanel
     global params;
 
-    h = findobj('Tag','calibration_info');
+    h = LookupTag('calibration_info');
     if isempty(h)
         h = CreateCalibrationInfoPanel;
     end

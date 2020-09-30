@@ -10,7 +10,8 @@ function f = CreateCellInfoFigure
 %
     % Set look and feel. Taken from
     % http://undocumentedmatlab.com/blog/modifying-matlab-look-and-feel/
-    javax.swing.UIManager.setLookAndFeel('javax.swing.plaf.metal.MetalLookAndFeel');
+    %%@ javax.swing.UIManager.setLookAndFeel('javax.swing.plaf.metal.MetalLookAndFeel');
+    %%@ ^^ NOTE: Metal no longer works on Mac R2019, so just use the default
 
     %If figure doesn't already exist, create it
     f = figure(params.plotting.cell_info_figure);
@@ -48,7 +49,21 @@ function f = CreateCellInfoFigure
     mainpanel = uipanel(f, 'Units', 'pixels', ...
                            'OuterPosition', panelpos);
 
-    for n=1:params.clustering.num_waveforms
+    % start out with "num_waveforms" being the number of clustering
+    % waveforms, but as we add waveforms in the waveformrefinement stage
+    % (or ground truth), add more cell plot checkboxes
+	num_waveforms = params.clustering.num_waveforms;
+    if isfield(CBPdata, "waveformrefinement") && ...
+       isfield(CBPdata.waveformrefinement, "num_waveforms")
+        num_waveforms = max(num_waveforms, ...
+                            CBPdata.waveformrefinement.num_waveforms);
+    end
+    if isfield(CBPdata, "groundtruth") && ...
+       isfield(CBPdata.groundtruth, "true_spike_class")
+        num_waveforms = max(num_waveforms, ...
+                            length(unique(CBPdata.groundtruth.true_spike_class)));
+    end
+    for n=1:num_waveforms
         % check if this is being plotted
         if ismember(n, CBPInternals.cells_to_plot)
             plotted = true;
@@ -124,14 +139,14 @@ function f = CreateCellInfoFigure
     set(hScrollPanel, 'Position', scrpos);
 
     % Add "Save" and "Cancel" buttons
-    savebut = uicontrol(f, 'Tag', 'cellinfopanel_save', ...
+    savebutn = uicontrol(f, 'Tag', 'cellinfopanel_save', ...
                             'Style', 'pushbutton', ...
                             'FontSize', 14, ...
                             'String', 'Save', ...
                             'Units', 'normalized', ...
                             'Position', [0 0 0.5 0.1], ...
                             'Callback', @(varargin) SaveInfo(f));
-    savebut = uicontrol(f, 'Tag', 'cellinfopanel_cancel', ...
+    cancbutn = uicontrol(f, 'Tag', 'cellinfopanel_cancel', ...
                             'Style', 'pushbutton', ...
                             'FontSize', 14, ...
                             'String', 'Cancel', ...
@@ -146,7 +161,8 @@ function f = CreateCellInfoFigure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Cleanup
     % reset the look and feel
-    javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+%%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end
 
 function SaveInfo(f)
@@ -154,10 +170,7 @@ function SaveInfo(f)
 
     % first check if anything has changed, and set CBPInternals correctly
     tmp_cells_to_plot = getappdata(f, 'tmp_cells_to_plot');
-    if isequal(tmp_cells_to_plot, CBPInternals.cells_to_plot)
-        haschanged = false;
-    else
-        haschanged = true;
+    if ~isequal(tmp_cells_to_plot, CBPInternals.cells_to_plot)
         CBPInternals.cells_to_plot = tmp_cells_to_plot;
     end
 

@@ -35,6 +35,9 @@ function out = multiplotlegend(varargin)
         out = legend(ax(end), plt, varargin{:});
         uistack(ax(end), 'top');
     end
+    
+    % fix font size, if it's too small
+    set(out, 'FontSize', get(groot, 'defaultLegendFontSize'));
 
     % change bounding box and resize
     drawnow;        %so it updates correctly

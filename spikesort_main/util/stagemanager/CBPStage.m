@@ -38,7 +38,7 @@ function CBPStage(name)
 % status
     % if this flag is set, don't do the try-catch. useful for error
     % debugging
-    if params.plotting.raw_errors
+    if params.general.raw_errors
         run_stage(stageobj);
     else
         try
@@ -49,7 +49,7 @@ function CBPStage(name)
                 ClearStaleTabs(name);
 
                 % set the last stage
-                if ~isempty(oldstage) % means we didn't just crash in rawdata
+                if ~isempty(oldrecentstage) % means we didn't just crash in rawdata
                     CBPInternals.mostrecentstage = oldrecentstage;
                     CBPInternals.currselectedtabstage = oldselectedtabstage;
                     SetCalibrationLoading(false);
@@ -77,7 +77,8 @@ function CBPStage(name)
     if params.plotting.calibration_mode
         SetCalibrationLoading(false);
     end
-    javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+%%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

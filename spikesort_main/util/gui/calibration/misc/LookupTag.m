@@ -3,7 +3,15 @@
 %
 % item = LookupTag(tag)
 function item = LookupTag(tname)
-    f = GetCalibrationFigure;
+    global params;
+    
+    % Only open CalibrationFigure window if we are creating it for
+    % the first time
+    if ishghandle(params.plotting.calibration_figure)
+        f = handle(params.plotting.calibration_figure);
+    else
+        f = GetCalibrationFigure;
+    end
     TagManager = getappdata(f, "TagManager");
     
     % if TagManager is empty, just return

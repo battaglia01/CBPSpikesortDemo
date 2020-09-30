@@ -29,14 +29,23 @@ function WhitenPlot(command)
         return;
     end
 
-    whitening = CBPdata.whitening;
 
 % -------------------------------------------------------------------------
 % Set up basics
     % local variables to reuse
-    data_whitened = whitening.data;
+    whitening = CBPdata.whitening;
 
-    %autocorrelation stuff
+    data_whitened = whitening.data;
+    data_L2_across_channels = sqrt(sum(data_whitened .^ 2, 1));  %%@ RMS vs L2?
+
+    % Threshold for considering noise
+    %%@ Mike's addition - assume these thresholds are given in "Linf-equivalent"
+    %%@ units. Also convert to L2
+    nchan = size(data_whitened, 1);
+    thresh = params.clustering.spike_threshold;
+    L2_equivalent_thresh = ConvertLinfThresholdToL2(thresh, nchan);
+
+    % autocorrelation stuff
     old_acfs = whitening.old_acfs;
     whitened_acfs = whitening.whitened_acfs;
     old_cov = whitening.old_cov;
@@ -46,6 +55,7 @@ function WhitenPlot(command)
     dt = whitening.dt;
     font_size = 12;
     nchan = size(data_whitened, 1);
+
 
 % -------------------------------------------------------------------------
 % Plot Autocorrelation (Tab 1)
@@ -77,7 +87,7 @@ function WhitenPlot(command)
 
       old_cov_scl = old_cov./max(max(abs(old_cov)));
       imagesc(old_cov_scl);
-      colormap(gray);
+      colormap(gca, gray);
       axis equal;
       axis tight;
       set(gca, 'FontSize', font_size);
@@ -94,7 +104,7 @@ function WhitenPlot(command)
       cla;
 
       imagesc(whitened_cov);
-      colormap(gray);
+      colormap(gca, gray);
       axis equal; axis tight;
       set(gca, 'FontSize', font_size);
       xlabel('channel');
@@ -111,21 +121,12 @@ function WhitenPlot(command)
 %
 % Set up basics for this tab
 
-    %get magnitude
-    dataMag = sqrt(sum(data_whitened .^ 2, 1));  %%@ RMS - RSS
-
-    %threshold for considering a spike
-    thresh = params.clustering.spike_threshold;
-
-    %get inds of spike peaks
-    peakInds = dataMag > thresh;
+    % get inds of spike peaks
+    peakInds = data_L2_across_channels > L2_equivalent_thresh;
     peakLen = params.clustering.peak_len;
-    if (isempty(peakLen))
-        peakLen=floor(params.general.spike_waveform_len/2);
-    end
-    for i = -peakLen : peakLen
-        adj_inds = min(max(whitening.nsamples+i,1),length(dataMag));
-        peakInds = peakInds & dataMag >= dataMag(adj_inds);
+    for n=-peakLen:peakLen
+        adj_inds = min(max(whitening.nsamples+n,1), length(data_L2_across_channels));
+        peakInds = peakInds & data_L2_across_channels >= data_L2_across_channels(adj_inds);
     end
     peakInds = find(peakInds);
 
@@ -183,7 +184,7 @@ function WhitenPlot(command)
     maxDFTind = floor(whitening.nsamples/2);
     dftMag = abs(fft(data_whitened,[],2));
     if (nchan > 1.5)
-        dftMag = sqrt(mean(dftMag.^2));  %%@ RMS - RSS
+        dftMag = sqrt(mean(dftMag.^2));  %%@ RMS vs L2?
     end
     plot(([1:maxDFTind]-1)/(maxDFTind*whitening.dt*2), dftMag(1:maxDFTind));
     set(gca, 'Yscale', 'log'); axis tight;
@@ -193,23 +194,34 @@ function WhitenPlot(command)
 % -------------------------------------------------------------------------
 % Plot Data Histogram (tab 3, top-right plot)
 %
-    %Add to Histograms
+    % Add to Histograms
     subplot(2,2,2);
     cla;
 
+    % Get the histogram
+    % Rice rule for histogram binsizes
+    nbins = min(100, 2*size(data_whitened,2)^(1/3));
+    % OLD - Freedman–Diaconis rule for histogram binsize
+    % nbins = size(datain.data,2)^(1/3) / (2*iqr(datain.data(:)));
     mx = max(abs(data_whitened(:)));
-    [N, X] = hist(data_whitened',100);
+    per_ch_bin_centers = linspace(-mx, mx, nbins);
+    data_hist = hist(data_whitened', per_ch_bin_centers);
 
-    plot(X,N);
+    % Plot histogram
+    data_hist_plot = plot(per_ch_bin_centers, data_hist);
     set(gca,'Yscale','log');
-    rg=get(gca,'Ylim');
-    rg(2) = rg(2)*10; % Mike's change-  leaves extra room for legend
+    yrg = get(gca,'Ylim');
+    yrg(2) = yrg(2)*10; % Mike's change - leaves extra room for legend
 
+    % Plot estimated Gaussian
     hold on;
-    gh=plot(X, max(N(:))*exp(-(X.^2)/2), 'r', 'LineWidth', 2);
-    set(gca, 'Ylim', rg);
+    gaussian_fit = max(data_hist(:))*exp(-(per_ch_bin_centers.^2)/2);
+    gaussian_fit_plot = plot(per_ch_bin_centers, gaussian_fit, ...
+                             'r', 'LineWidth', 2);
+    set(gca, 'Ylim', yrg);
     set(gca, 'Xlim', [-mx mx]);
     hold off;
+
     if (nchan < 1.5)
       title('Histogram, filtered/whitened data');
     else
@@ -225,23 +237,33 @@ function WhitenPlot(command)
     subplot(2,2,4);
     cla;
 
-    mx = max(dataMag);
-    [N,X] = hist(dataMag, 100);
-    Nspikes = hist(dataMag(dataMag>thresh), X);
-    chi = 2*X.*chi2pdf(X.^2, nchan);    %%@ RMS - RSS
+    % get estimated Chi-squared distribution
+    [data_L2_hist, filt_bin_centers] = hist(data_L2_across_channels, nbins);
+    spike_hist = hist(data_L2_across_channels(peakInds), ...
+                      filt_bin_centers);
+    chi_fit = 2*filt_bin_centers.*chi2pdf(filt_bin_centers.^2, nchan);    %%@ RMS vs L2?
+    chi_fit = (max(data_L2_hist)/max(chi_fit))*chi_fit;
 
-    bar(X,N);
+    % plot histogram of the cross-channel L2 signal histogram (spikes + noise)
+    L2_hist_plot = bar(filt_bin_centers, data_L2_hist);
     set(gca,'Yscale','log');
     yrg = get(gca, 'Ylim');
     hold on;
 
-    dh = bar(X,Nspikes);
-    set(dh, 'FaceColor', sigCol);
-    ch = plot(X, (max(N)/max(chi))*chi, 'k', 'LineWidth', 2);
+    % plot the L2 spike histogram (spike snippets only)
+    spike_hist_plot = bar(filt_bin_centers, spike_hist);
+    set(spike_hist_plot, 'FaceColor', sigCol);
+    chi_fit_plot = plot(filt_bin_centers, chi_fit, 'k', 'LineWidth', 2);
     hold off;
 
-    set(gca, 'Ylim', yrg); set(gca, 'Xlim', [0 mx]);
-    title('Histogram, magnitude over filtered/whitened channel(s)');
-    xlabel('RMS magnitude (over all channels)');
-    legend('Whitened data (combined channels)', 'Putative spike segments', ...
+    %%@ Note - this originally said "RMS magnitude", but it's really an L2
+    %%@ as it is root-sum-squared rather than root-mean-squared, so changed
+    %%@ it
+    set(gca, 'Ylim', yrg);
+    set(gca, 'Xlim', [0 max(data_L2_across_channels)]);
+    xlabel('L2 magnitude (over all channels)');
+    legend([L2_hist_plot, spike_hist_plot, chi_fit_plot], ...
+           'Whitened data (combined channels)', ...
+           'Putative spike segments', ...
            'Chi-distribution, fit to non-spike segments');
+    title('Histogram, magnitude over filtered/whitened channel(s)');

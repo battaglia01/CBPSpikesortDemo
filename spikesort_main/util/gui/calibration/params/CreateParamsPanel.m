@@ -10,6 +10,7 @@ function p = CreateParamsPanel(fieldname, parent)
                 'Tag', ['params_panel_' fieldname], ...
                 'Units', 'normalized', ...
                 'Position', [0 0 1 1]);
+    RegisterTag(p);
 
     % Now add textboxes for each field
     field = getfield(params,fieldname);
@@ -17,9 +18,11 @@ function p = CreateParamsPanel(fieldname, parent)
     for n=1:length(subfields)
         subfieldname = subfields(n);
         subfieldname = subfieldname{1};
-
+        
+        % use "___" as a placeholder for "." in the tag, since "." isn't
+        % permitted in field names
         subfieldlabel = uicontrol('Parent', p, ...
-                                  'Tag', ['label: params.' fieldname '.' subfieldname], ...
+                                  'Tag', ['params_label_params___' fieldname '___' subfieldname], ...
                                   'Style', 'edit', ...
                                   'Enable', 'inactive', ...
                                   'String', subfieldname, ...
@@ -30,7 +33,7 @@ function p = CreateParamsPanel(fieldname, parent)
                                   'FontSize', .67);
 
         subfieldentry = uicontrol('Parent', p, ...
-                                  'Tag', ['value: params.' fieldname '.' subfieldname], ...
+                                  'Tag', ['params_value_params___' fieldname '___' subfieldname], ...
                                   'Style', 'edit', ...
                                   'String', ConvertParamToStr(getfield(field,subfieldname)), ...
                                   'HorizontalAlignment', 'left', ...
@@ -39,62 +42,7 @@ function p = CreateParamsPanel(fieldname, parent)
                                   'FontUnits', 'normalized', ...
                                   'FontSize', .67, ...
                                   'Callback', @ParamChanged);
+    RegisterTag(subfieldlabel);
+    RegisterTag(subfieldentry);
     end
-end
-
-% Callback when user changes a textbox
-function ParamChanged(obj, data)
-    global params;
-
-    pname = get(obj, 'Tag');
-    pname = pname(8:end);       %truncate initial "value: " string
-    oldpvalue = eval(pname);
-
-    oldstr = ConvertParamToStr(oldpvalue);
-    newstr = get(obj,'String');
-
-    currchanged = getappdata(GetParamsFigure, 'changed');
-
-    % if string has changed, change background color and add to list
-    % of changed
-    if ~isequal(oldstr, newstr) && ~(isempty(oldstr) && isempty(newstr))
-        set(obj, 'BackgroundColor', [1 1 0.4]);
-
-        % check if this is already listed as changed
-        found = false;
-        for n=1:length(currchanged)
-            if isequal(currchanged{n}, pname)
-                found = true;
-            end
-        end
-
-        % if not, list it as changed
-        if ~found
-            currchanged{end+1} = pname;
-        end
-    else
-        % Set back to default background color
-        %%@ NOTE - this is default in MATLAB, should double check it works
-        %%@ for all LAF's
-        set(obj, 'BackgroundColor', [1 1 1]);
-
-        % find this in the changed list
-        currchanged = getappdata(GetParamsFigure, 'changed');
-        found = false;
-        foundind = -1;
-        for n=1:length(currchanged)
-            if isequal(currchanged{n}, pname)
-                found = true;
-                foundind = n;
-            end
-        end
-
-        % if we found something, remove it from the list
-        if found
-            currchanged(foundind) = [];
-        end
-    end
-
-    % now make a note of changed things
-    setappdata(GetParamsFigure, 'changed', currchanged);
 end

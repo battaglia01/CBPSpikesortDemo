@@ -27,7 +27,7 @@ function CBPStagePlot(stageobj)
 % Plot stage, catch errors, reset status
     % if this flag is set, don't do the try-catch. useful for error
     % debugging
-    if params.plotting.raw_errors
+    if params.general.raw_errors
         plot_stage(stageobj);
     else
         try
@@ -59,7 +59,8 @@ function CBPStagePlot(stageobj)
 
     % Put the status and tabs back, and as a precaution, reset LaF
     SetCalibrationLoading(false);
-    javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+%%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -4,7 +4,7 @@
 function h = GetCalibrationStatus
     global params;
 
-    h = findobj('Tag','calibration_sb');
+    h = LookupTag('calibration_sb');
     if isempty(h)
         h = CreateCalibrationStatus;
     end

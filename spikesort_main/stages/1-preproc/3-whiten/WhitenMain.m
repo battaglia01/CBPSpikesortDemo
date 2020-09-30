@@ -30,15 +30,18 @@ CBPdata.whitening = CBPdata.filtering;
 
 % Merge channels into one by taking pointwise RMS of data
 %%@ (should really allow a more general p-norm...)
-data_rms = sqrt(sum(CBPdata.filtering.data .^ 2, 1));  %%@ RMS - RSS
+data_L2_across_channels = sqrt(sum(CBPdata.filtering.data .^ 2, 1));  %%@ RMS vs L2?
 
 % Estimate noise zones
 min_zone_len = params.whitening.min_zone_len;
-if isempty(min_zone_len)
-    min_zone_len = floor(params.general.spike_waveform_len / 2);
-end
-noise_zone_idx = GetNoiseZones(data_rms, ...
-                               params.whitening.noise_threshold, ...
+
+%%@ Mike's addition - assume these thresholds are given in "Linf-equivalent"
+%%@ units. Convert to L2
+nchan = size(CBPdata.filtering.data, 1);
+thresh = params.whitening.noise_threshold;
+L2_equivalent_thresh = ConvertLinfThresholdToL2(thresh, nchan);
+noise_zone_idx = GetNoiseZones(data_L2_across_channels, ...
+                               L2_equivalent_thresh, ...
                                min_zone_len);
 
 % Test if noise covariance matrix is singular

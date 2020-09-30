@@ -82,8 +82,8 @@ function under_panel = PyramidZoomMultiPlot(plots)
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % First, Set look and feel
     % Taken from http://undocumentedmatlab.com/blog/modifying-matlab-look-and-feel/
-    newLnF = 'javax.swing.plaf.metal.MetalLookAndFeel';
-    javax.swing.UIManager.setLookAndFeel(newLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel('javax.swing.plaf.metal.MetalLookAndFeel');
+    %%@ ^^ NOTE: Metal no longer works on Mac R2019, so just use the default
 
     % Create axes and set to data plot times
     %%@ this is currently a dummy axes, and becomes the "under_panel" from multiplot.
@@ -166,7 +166,8 @@ function under_panel = PyramidZoomMultiPlot(plots)
     pause(0.05);
 
     %Restore original look and feel
-    javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+%%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
     axes(under_panel);
 end
 

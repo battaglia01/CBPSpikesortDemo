@@ -11,18 +11,22 @@ function SpikeTimingMain
 global CBPdata params CBPInternals;
 
 % set up CBPdata.CBP, init_waveforms
-if ~isfield(CBPdata, 'waveformrefinement') || ~isfield(CBPdata.waveformrefinement, 'final_waveforms');
-    % if we haven't gotten all the way to waveform refinement, initialize with
-    % clustering
+if CBPdata.CBP.num_passes == 0 || ...
+        ~isfield(CBPdata, 'waveformrefinement') || ...
+        ~isfield(CBPdata.waveformrefinement, 'final_waveforms')
+    % if CBP num_passes == 0, or if we haven't gotten all the way to
+    % waveform refinement, initialize with clustering
     first_pass = true;
     fprintf('*** Using initial estimates as CBP starting point...\n');
     CBPdata.CBP.init_waveforms = CBPdata.clustering.init_waveforms;
+    CBPdata.CBP.num_waveforms = params.clustering.num_waveforms;
 else
     % else, use the last (thresholded) waveforms as initial waveforms for this
     % CBP round
     first_pass = false;
     fprintf('*** Seeding new initial waveforms with previous final waveforms...\n');
     CBPdata.CBP.init_waveforms = CBPdata.waveformrefinement.final_waveforms;
+    CBPdata.CBP.num_waveforms = CBPdata.waveformrefinement.num_waveforms;
 end
 
 % Partition the signal into snippets
@@ -32,7 +36,7 @@ end
         PartitionSignal(CBPdata.whitening.data, params.partition);
 
 % Get spike times
-[CBPdata.CBP.spike_times, CBPdata.CBP.spike_times_ms, ...
+[CBPdata.CBP.spike_time_array, CBPdata.CBP.spike_time_array_ms, ...
     CBPdata.CBP.spike_amps, CBPdata.CBP.recon_snippets] = ...
         SpikesortCBP(CBPdata.CBP.snippets, CBPdata.CBP.snippet_centers, ...
                      CBPdata.CBP.init_waveforms, params.cbp_outer, ...
@@ -40,7 +44,7 @@ end
 
 % Create spike traces
 CBPdata.CBP.spike_traces_init = ...
-    CreateSpikeTraces(CBPdata.CBP.spike_times, ...
+    CreateSpikeTraces(CBPdata.CBP.spike_time_array, ...
                       CBPdata.CBP.spike_amps, ...
                       CBPdata.CBP.init_waveforms, ...
                       CBPdata.whitening.nsamples, ...
@@ -52,7 +56,7 @@ if first_pass
     CBPdata.CBP.num_passes = 1;
 else
     % not first pass - increment the last waveform refinement pass
-    CBPdata.CBP.num_passes = CBPdata.CBP.waveformrefinement.num_passes + 1;
+    CBPdata.CBP.num_passes = CBPdata.waveformrefinement.num_passes + 1;
 end
 
 % get rid of the old, previous amplitude thresholding, clustering comparison,

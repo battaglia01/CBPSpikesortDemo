@@ -17,12 +17,12 @@ wlen = floor(params.clustering.window_len / 2);
 
 X_CBP = [];
 CBP_assignments = [];
-for s = 1:length(CBPdata.CBP.spike_times)
-    for n = 1:length(CBPdata.CBP.spike_times{s})
+for s = 1:length(CBPdata.CBP.spike_time_array)
+    for n = 1:length(CBPdata.CBP.spike_time_array{s})
         %if index would fall off the beginning or end of the waveform,
         %drop it
-        if CBPdata.CBP.spike_times{s}(n) < wlen + 1 ...
-           || CBPdata.CBP.spike_times{s}(n) > CBPdata.whitening.nsamples ...
+        if CBPdata.CBP.spike_time_array{s}(n) < wlen + 1 ...
+           || CBPdata.CBP.spike_time_array{s}(n) > CBPdata.whitening.nsamples ...
                                                   - (wlen + 1)
             continue;
         end
@@ -32,8 +32,8 @@ for s = 1:length(CBPdata.CBP.spike_times)
           continue;
         end
 
-        snip_begin = round(CBPdata.CBP.spike_times{s}(n) - wlen);
-        snip_end = round(CBPdata.CBP.spike_times{s}(n) + wlen);
+        snip_begin = round(CBPdata.CBP.spike_time_array{s}(n) - wlen);
+        snip_end = round(CBPdata.CBP.spike_time_array{s}(n) + wlen);
         snippet = CBPdata.whitening.data(:, snip_begin:snip_end);
 
         X_CBP = [X_CBP reshape(snippet',[],1)];

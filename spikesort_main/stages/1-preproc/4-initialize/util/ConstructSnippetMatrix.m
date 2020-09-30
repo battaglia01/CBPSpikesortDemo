@@ -24,7 +24,7 @@ function X = ConstructSnippetMatrix(data, peak_idx, pars)
     fine_xax = (1 : 1 / pars.upsample_fac : pars.window_len);
 
     % Populate the matrix X one column at a time.
-    parfor i = 1 : length(peak_idx)
+    for i = 1 : length(peak_idx)
         % Extract snippet from the data
         x = data(:, peak_idx(i) + (-wlen : wlen));
         if pars.upsample_fac <= 1
@@ -37,23 +37,45 @@ function X = ConstructSnippetMatrix(data, peak_idx, pars)
         for j = 1 : size(x, 1)
             x_fine(j, :) = interp1(xax, x(j, :), fine_xax, 'pchip');
         end
-
         % Smooth the averaged mixdown of x_fine.
         x_fine_averaged = [];
         switch(pars.averaging_mode)
-            case 'maxrms'
-                x_fine_averaged = sqrt(sum(x_fine .^ 2, 1));    %%@ RMS - RSS
-            case 'maxabs'
+            case 'L1'
                 x_fine_averaged = sum(abs(x_fine), 1);
+            case 'L2'
+                x_fine_averaged = sqrt(sum(x_fine .^ 2, 1));    %%@ RMS vs L2?
+            case 'Linf'
+                x_fine_averaged = max(abs(x_fine), [], 1);
             case 'max'
                 x_fine_averaged = sum(x_fine, 1);
+                %%@ add this for the median-based methods
+                x_fine_averaged(x_fine_averaged < 0) = 0;
             case 'min'
                 x_fine_averaged = sum(-x_fine, 1);
+                %%@ add this for the median-based methods
+                x_fine_averaged(x_fine_averaged < 0) = 0;
+            otherwise
+                error("Invalid averaging mode!")
         end
         x_fine_averaged = smooth(x_fine_averaged, pars.smooth_len);
 
         % Align to max value of the smoothed, upsampled one-channel average.
-        [max_val, max_idx] = max(x_fine_averaged);
+        if isequal(pars.alignment_mode, 'peak')
+            [~, max_idx] = max(x_fine_averaged);
+        elseif isequal(pars.alignment_mode, 'centroid')
+            moment_0 = sum(x_fine_averaged);
+            moment_1 = sum(x_fine_averaged .* ...
+                           (1:length(x_fine_averaged))');
+            max_idx = round(moment_1/moment_0);
+            [~, tmp] = max(x_fine_averaged);
+        elseif isequal(pars.alignment_mode, 'median')
+            moment_0 = sum(x_fine_averaged);
+            tmp = x_fine_averaged / moment_0;
+            cdf_tmp = cumsum(tmp);
+            
+            max_idx = min(find(cdf_tmp >= 0.5));
+        end
+        
         % clear x_fine_averaged;
         % DOWNSAMPLE BACK TO ORIGINAL RESOLUTION
         if (pars.downsample_after_align)

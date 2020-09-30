@@ -59,6 +59,12 @@ for chunk_num = 1:num_chunks
     info_flag = nargout > 3;
 
     numprogunits = min(50,chunk_size);
+    
+    %%@ this initializes the parallel pool if not already initialized,
+    %%@ which fixes a bug with progress display
+    parfor n=1:1
+        % do nothing
+    end
     fprintf('Progress:\n');
     fprintf('  %s\n',repmat('_',1,numprogunits));
     fprintf('  \n');

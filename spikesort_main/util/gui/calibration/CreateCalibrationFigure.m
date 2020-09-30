@@ -7,11 +7,10 @@ function h = CreateCalibrationFigure
 
 % ================================================================
 % First, get the calibration figure
-    h = figure(params.plotting.calibration_figure);
-
     % Set look and feel. Taken from
     % http://undocumentedmatlab.com/blog/modifying-matlab-look-and-feel/
-    javax.swing.UIManager.setLookAndFeel('javax.swing.plaf.metal.MetalLookAndFeel');
+    %%%@ javax.swing.UIManager.setLookAndFeel('javax.swing.plaf.metal.MetalLookAndFeel');
+    %%@ ^^ NOTE: Metal no longer works on Mac R2019, so just use the default
 
     % If it doesn't already exist, create it
     h = figure(params.plotting.calibration_figure);
@@ -24,17 +23,24 @@ function h = CreateCalibrationFigure
     set(h, 'ToolBar', 'none');
     set(h, 'MenuBar', 'none');
     scrsz =  get(0,'ScreenSize');
-    set(h, 'OuterPosition', [0.05*scrsz(3) 0.10*scrsz(4) .9*scrsz(3) .85*scrsz(4)]);
-
+    set(h, 'OuterPosition', [0.05*scrsz(3) 0.075*scrsz(4) .9*scrsz(3) .85*scrsz(4)]);
+    set(h, 'CloseRequestFcn', @ConfirmCloseCalibrationFigure);
+    
     % Set up info panel
     info = GetCalibrationInfoPanel;
 
     % Set up tab group
+    %%@ Change LookAndFeel to metal just for the tabgroup
+    javax.swing.UIManager.setLookAndFeel('javax.swing.plaf.metal.MetalLookAndFeel');
     tg = uitabgroup(h, 'Tag', 'calibration_tg', ...
                        'SelectionChangedFcn', ...
                        @(varargin) TabChanged(varargin{:}), ...
                        'TabLocation', 'left', ...
                        'Position', [0 0.05 1 0.91]);
+    %%@ Since MATLAB is deprecating java, try a different way to enable/disable
+    %%@ tabgroup
+    setappdata(tg, "Enabled", true);
+    javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
 
     % Store handle to this in figure's appdata so we don't need to look
     % every time
@@ -55,26 +61,25 @@ function h = CreateCalibrationFigure
     pause(0.05);
 
     % Restore original look and feel
-    javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end
 
-% varargin{1} is the tabgroup, varargin{2} is a struct w/ the OldValue and
-% NewValue
-function TabChanged(varargin)
-    global CBPInternals;
-    % first, update the internal "currselectedtabstage"
-    newstageobj = getappdata(varargin{2}.NewValue, 'stageobj');
-    CBPInternals.currselectedtabstage = newstageobj;
 
-    % now set the new calibration status
-    SetCalibrationStatusStage(newstageobj);
 
-    % Then, if "needsreplot" is set in the current stage, replot and reset.
-    % Note this updates the true stage object, since stages are subclasses
-    % of handle
-    if newstageobj.needsreplot
-        CBPStagePlot(newstageobj);
-        CBPInternals.currselectedtabstage.needsreplot = false;
-        newstageobj.needsreplot = false;
-    end
+% Taken from MATLAB's example documentation
+function ConfirmCloseCalibrationFigure(src,callbackdata)
+% Close request function 
+% to display a question dialog box 
+   selection = questdlg("Are you sure you want to close the calibration " + ...
+                        "window? If you haven't saved, you will lose " + ...
+                        "your results.", ...
+                        'Close Request Function', ...
+                        'Yes', 'No', 'No'); 
+   switch selection 
+      case 'Yes'
+         delete(gcf)
+      case 'No'
+      return 
+   end
 end

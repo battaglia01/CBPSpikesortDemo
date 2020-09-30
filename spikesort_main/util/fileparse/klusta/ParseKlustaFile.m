@@ -1,4 +1,5 @@
 % Parses a Klusta .prm file.
+% Reference prm at https://github.com/klusta-team/example/blob/master/params.prm
 function ParseKlustaFile(filename)
     global CBPdata params CBPInternals
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -126,42 +127,56 @@ function ParseKlustaFile(filename)
     end
     % NOTE - this has a "chunk_overlap_seconds" parameter too, which we
     % don't seem to use...
-    %
+ 
+    
     % Thresholds
     %   n_excerpts -> NOT IMPLEMENTED (part of their white noise detection)
     %   excerpt_size_seconds -> NOT IMPLEMENTED (likewise)
     %   threshold_strong_std_factor -> params.clustering.spike_threshold
-    %                                  params.partition.silence_threshold
-    %                                  (both are basically the strong
-    %                                  threshold)
-    %   threshold_weak_std_factor ->   unsure if anything. setting either
-    %                                  of the above variables to this
-    %                                  instead of the strong factor gives
-    %                                  weird results.
-    %                                  params.cbp.magnitude_threshold
-    %                                  also doesn't work if set to this.
-    %   use_single_threshold -> leave the weak one unset
+    %                                  
+    %   threshold_weak_std_factor ->   params.partition.silence_threshold
+    %
+    %   use_single_threshold -> assume the weak one is 80% of the strong
+    %                           one for CBP's default
     %   if only one std is set but not use_single_threshold, set to strong
     %   detect_spikes -> NOT IMPLEMENTED (sets asymmetry in positive/
     %                                    negative spike detection)
-
+    %
+    % Note that there is nothing here corresponding to
+    % params.whitening.noise_threshold. I am not sure exactly how to import
+    % that! We will just leave that at the default and let the user adjust.
     if keyExists(py_env, 'spikedetekt/threshold_strong_std_factor')
         strong_s = getKey(py_env, 'spikedetekt/threshold_strong_std_factor',...
                           'double');
         params.clustering.spike_threshold = strong_s;
-        params.partition.silence_threshold = strong_s;
-    elseif keyExists(py_env, 'spikedetekt/threshold_weak_std_factor')
+    end
+    
+    % check if use_single_threshold is set before setting the weak
+    % threshold
+    use_single_threshold = false;
+    if keyExists(py_env, 'spikedetekt/use_single_threshold')
+        use_single_threshold = ...
+            getKey(py_env, 'spikedetekt/use_single_threshold', logical);
+    end
+       
+    % If use_single_threshold isn't true and key exists, set the silence 
+    % threshold to the weak threshold. If not, and if the strong threshold
+    % is set, set the weak threshold 80% of the strong threshold. Otherwise
+    % just leave everything unset.
+    if ~use_single_threshold && keyExists(py_env, 'spikedetekt/threshold_weak_std_factor')
+        weak_s = getKey(py_env, 'spikedetekt/threshold_weak_std_factor',...
+                        'double');
+        params.partition.silence_threshold = weak_s;
+    elseif keyExists(py_env, 'spikedetekt/threshold_weak_std_factor') && ...
+           ~keyExists(py_env, 'spikedetekt/threshold_strong_std_factor')
         % if we've gotten here, then strong_std_factor isn't set but
         % weak_std_factor is, and there is only one threshold. Probably a
         % param formatting error - so just treat this as the *strong*
         % threshold.
-        weak_s = getKey(py_env, 'spikedetekt/threshold_strong_std_factor',...
-                          'double');
-        params.clustering.spike_threshold = weak_s;
+        weak_s = .8 * getKey(py_env, 'spikedetekt/threshold_strong_std_factor',...
+                             'double');
         params.partition.silence_threshold = weak_s;
     end
-    % if we've gotten this far, neither strong or weak thresholds were set,
-    % go with CBP defaults.
 
 
     % Connected Components

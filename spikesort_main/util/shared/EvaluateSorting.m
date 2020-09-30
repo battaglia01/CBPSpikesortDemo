@@ -3,7 +3,9 @@ function [total_misses, total_false_positives, ...
     EvaluateSorting(est_times, est_amps, true_times, varargin)
 % Given a set of estimated spike times and amplitudes and an amplitude
 % threshold, together with a set of true spike times, determine the # of
-% misses and false positives
+% misses and false positives.
+% This function thresholds the spike times and then calls
+% EvaluateSortingLowLevel.
 %
 % est_times/amps : cell array of spike times/amplitudes for each waveform
 %

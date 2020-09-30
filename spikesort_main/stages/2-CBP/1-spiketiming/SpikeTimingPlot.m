@@ -14,7 +14,7 @@ function SpikeTimingPlot(command)
 % Set up basics
     %set up local vars to reuse
     whitening = CBPdata.whitening;
-    spike_times = CBPdata.CBP.spike_times;
+    spike_time_array = CBPdata.CBP.spike_time_array;
     spike_amps = CBPdata.CBP.spike_amps;
     spike_traces_init = CBPdata.CBP.spike_traces_init;
     init_waveforms = CBPdata.CBP.init_waveforms;
@@ -24,7 +24,7 @@ function SpikeTimingPlot(command)
 
     % get the cells to plot. This is whatever cells are listed as being
     % plottable in plot_cells, intersected with the total number of cells.
-    true_num_cells = params.clustering.num_waveforms;
+    true_num_cells = CBPdata.CBP.num_waveforms;
     plot_cells = intersect(CBPInternals.cells_to_plot, 1:true_num_cells);
     num_cells = length(plot_cells);
     CheckPlotCells(num_cells);
@@ -92,8 +92,8 @@ function SpikeTimingPlot(command)
         c = plot_cells(n);
         vertalign = 1-(n-1)/(num_cells-1);
         plots{end+1} = [];
-        plots{end}.x = (spike_times{c}-1)*whitening.dt;
-        plots{end}.y = vertalign*ones(1,length(spike_times{c}));
+        plots{end}.x = (spike_time_array{c}-1)*whitening.dt;
+        plots{end}.y = vertalign*ones(1,length(spike_time_array{c}));
         plots{end}.args = {'.', 'Color', params.plotting.cell_color(c)};
         plots{end}.chan = 'header';
         plots{end}.type = 'rawplot';
@@ -126,7 +126,7 @@ function SpikeTimingPlot(command)
 
     hold on;
     sigCol = [0 0.8 0];   % NOTE: used to be red
-    %%@ RMS - RSS?
+    %%@ RMS vs L2??
     gh=plot(Xax, max(N(:))*exp(-(Xax.^2)/2), 'Color', sigCol, 'LineWidth', 2);
 
     %%@Would be nice if we could avoid repeated code here - also in
@@ -148,7 +148,7 @@ function SpikeTimingPlot(command)
 % Plot Histogram of magnitude (bottom-right subplot)
     %Histogram of magnitude
     subplot(2,2,4); cla;
-    mx = max(sqrt(sum(whitening.data.^2,1)));    %%@ RMS - RSS
+    mx = max(sqrt(sum(whitening.data.^2,1)));    %%@ RMS vs L2?
     [N,Xax] = hist(sqrt(sum(resid.^2, 2)), mx*[0:100]/100);
     chi = 2*Xax.*chi2pdf(Xax.^2, nchan);
     bar(Xax,N); set(gca,'Yscale','log'); yrg= get(gca, 'Ylim');

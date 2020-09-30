@@ -26,7 +26,7 @@ for feature_num = 1 : num_features
     residuals = (repmat(data, [1, 1, size(ShiftMtx, 3)]) - ShiftMtx);
     whitened_residuals = residuals;
     %whitened_residuals = WhitenMtx * residuals;
-    criteria = sum(squeeze(sum(whitened_residuals .^ 2, 2)), 1)';     %%@ RMS - RSS
+    criteria = sum(squeeze(sum(whitened_residuals .^ 2, 2)), 1)';     %%@ RMS vs L2?
     if (min(criteria) < best_residual)
         [best_residual, best_time_idx] = min(criteria);
         best_feature_idx = feature_num;

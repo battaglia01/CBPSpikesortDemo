@@ -125,7 +125,7 @@ WaveformRefinementStage.name = 'WaveformRefinement';
 WaveformRefinementStage.next = 'SpikeTiming';
 WaveformRefinementStage.category = 'CBP';
 WaveformRefinementStage.description = 'Re-estimate waveforms';
-WaveformRefinementStage.showreview = true;
+WaveformRefinementStage.showreview = true;  % this button lets us go to post-analysis
 WaveformRefinementStage.paramname = 'cbp';
 WaveformRefinementStage.replotoncellchange = true;
 
@@ -136,6 +136,14 @@ RegisterStage(WaveformRefinementStage);
 
 %=========================================
 % Post-Analysis
+GroundTruthStage = StageObject;
+GroundTruthStage.name = 'GroundTruth';
+GroundTruthStage.next = 'TimingComparison';
+GroundTruthStage.category = 'Post-Analysis';
+GroundTruthStage.description = 'Ground Truth';
+GroundTruthStage.paramname = 'groundtruth';
+GroundTruthStage.replotoncellchange = true;
+
 TimingComparisonStage = StageObject;
 TimingComparisonStage.name = 'TimingComparison';
 TimingComparisonStage.next = 'Sonification';
@@ -158,6 +166,7 @@ GreedySpikeStage.category = 'Post-Analysis';
 GreedySpikeStage.description = 'Greedy Spike Comparison';
 GreedySpikeStage.paramname = 'postproc';
 
+RegisterStage(GroundTruthStage);
 RegisterStage(TimingComparisonStage);
 RegisterStage(SonificationStage);
 RegisterStage(GreedySpikeStage);

@@ -29,4 +29,11 @@ function t = CreateCalibrationTab(name, stagename, varargin)
 
     % Also, update the currently selected tab stage
     CBPInternals.currselectedtabstage = GetStageFromName(stagename);
+    
+    % Lastly, if tab group is disabled, set color to gray
+    if ~getappdata(tg, "Enabled")
+        set(t,"ForegroundColor",[0.5 0.5 0.5]);
+        drawnow;
+        pause(0.01);
+    end
 end

@@ -25,7 +25,7 @@ function UpdateThresh(inds, f)
     ClearStaleTabs(ampstage.next);
 
     % Now, loop through all good inds. if threshold hasn't changed, continue
-    true_num_cells = params.clustering.num_waveforms;
+    true_num_cells = CBPdata.CBP.num_waveforms;
     plot_cells = intersect(CBPInternals.cells_to_plot, 1:true_num_cells);
     num_cells = length(plot_cells);
     CheckPlotCells(num_cells);
@@ -38,17 +38,16 @@ function UpdateThresh(inds, f)
         newthresh = getappdata(f, ['imline_pos_' num2str(c)]);
 
         % Calculate new threshed sts
-        CBPdata.amplitude.thresh_spike_times_ms{c} = ...
-            CBPdata.CBP.spike_times_ms{c}(CBPdata.CBP.spike_amps{c} > newthresh);
+        CBPdata.amplitude.thresh_spike_time_array_ms{c} = ...
+            CBPdata.CBP.spike_time_array_ms{c}(CBPdata.CBP.spike_amps{c} > newthresh);
 
         % Plot autocorr first, then Xcorr with each other plot
-
-        PlotACorr(CBPdata.amplitude.thresh_spike_times_ms, num_cells, n);
+        PlotACorr(CBPdata.amplitude.thresh_spike_time_array_ms, num_cells, n);
         for m = 1:num_cells
             if m == n
                 continue;
             end
-            PlotXCorr(CBPdata.amplitude.thresh_spike_times_ms, num_cells, n, m);
+            PlotXCorr(CBPdata.amplitude.thresh_spike_time_array_ms, num_cells, n, m);
         end
 
         % Now save new thresh
@@ -56,7 +55,7 @@ function UpdateThresh(inds, f)
     end
 
     % If Ground Truth is defined, plot this, otherwise do nothing
-    ShowGroundTruthEval(CBPdata.amplitude.thresh_spike_times_ms, f);
+    ShowGroundTruthEval(CBPdata.amplitude.thresh_spike_time_array_ms, f);
 
     % Done! Reset the status bar to AmplitudeThreshold
     SetCalibrationLoading(false);

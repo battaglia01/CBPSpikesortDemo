@@ -1,58 +1,46 @@
 function [centroids, assignments, X, XProj, PCs, peak_idx,...
-          init_waveforms, spike_times_cl] = EstimateInitialWaveforms
-global CBPdata params CBPInternals;
-
-% Use PCA + K-means clustering to get an intial estimate of the waveform
+          init_waveforms, spike_time_array_cl] = ...
+            EstimateInitialWaveforms(whitened_data, nchan, waveform_len, ...
+                                     cluster_pars)
+% Use PCA + K-means clustering to get an initial estimate of the waveform
 % shapes. Also used to benchmark performance of clustering for spike
 % sorting.
-
-if isempty(params.clustering.window_len)
-    params.clustering.window_len = 2*floor(params.general.spike_waveform_len/2)+1;
-end
-
-if isempty(params.clustering.peak_len)
-    params.clustering.peak_len = floor(params.clustering.window_len / 2);
-end
+%
+% Outputs:
+%   `centroids` are the cluster centroids (i.e. average of snippets in each cluster)
+%   `assignments` is a vector of cluster ID's for each snippet
+%       corresponding to clusters in `X` below
+%   `X` is a matrix in which each column is a snippet
+%   `XProj` is a matrix in which each *row* (!!) is a projected snippet
+%       in the PC space (due to obscure MATLAB compatibility reasons)
+%   `PCs` is a matrix in which each *column* is a PC
+%   `peak_idx` is a vector of peaks/segment centers for the snippets
+%   `init_waveforms` is a de-vectorized version of `centroids`; a cell
+%       array of centroids
+%   `spike_time_array_cl` is a cell array of spike times, taken from the
+%       `assignments` and `peak_idx` arrays
 
 % Root-mean-squared (across channels) of data.
-data_rms = sqrt(sum(CBPdata.whitening.data.^2, 1));    %%@ RMS - RSS
+%%@ Mike's note: this is really a root-sum-squared, not a root-mean-squared
+data_L2_across_channels = sqrt(sum(whitened_data.^2, 1));    %%@ RMS vs L2?
 
 % Clustering parameters
 %%@MIKE'S NOTE - the below were older versions, leaving here for reference
 %%threshold = 4 * median(data_rms) ./ 0.6745; % robust
 %%threshold = 4 * std(data_rms);  %**EPS: Don't know where this came from
-threshold = params.clustering.spike_threshold;
+threshold = cluster_pars.spike_threshold;
+L2_adjusted_threshold = ConvertLinfThresholdToL2(threshold, nchan);
 
 % Identify time indices of candidate peaks.
-peak_idx = FindPeaks(data_rms(:), threshold, params.clustering);
+peak_idx = FindPeaks(data_L2_across_channels(:), L2_adjusted_threshold, ...
+                     cluster_pars);
 fprintf('Found %d segments exceeding threshold of %.1f.\n', ...
         length(peak_idx), threshold);
-
-% Construct a matrix with these windows, upsampled and aligned.
-X = ConstructSnippetMatrix(CBPdata.whitening.data, peak_idx, ...
-                           params.clustering);
-
-if isempty(X)
-    error("ERROR: No spikes found in initial clustering stage! " + ...
-          "This often happens because params.clustering.spike_threshold " + ...
-          "is set too high. Try again after adjusting this parameter!");
-end
-                       
-[PCs, XProj] = TruncatePCs(X, params.clustering.percent_variance);
-
-% Do K-means clustering
-% NOTE - we are clustering in the PC space, not the original space
-assignments = DoKMeans(XProj, params.clustering.num_waveforms);
-centroids = GetCentroids(X, assignments);
-
-% Put them in a canonical order (according to increasing 2norm);
-[centroids, clperm] = OrderWaveformsByNorm(centroids);
-assignments = PermuteAssignments(assignments, clperm);
-
-init_waveforms = ...
-    waveformMat2Cell(centroids, params.general.spike_waveform_len, ...
-    CBPdata.whitening.nchan, params.clustering.num_waveforms);
-
-% For later comparisons, also compute spike times corresponding to the segments
-% assigned to each cluster:
-spike_times_cl = GetSpikeTimesFromAssignments(peak_idx, assignments);
+    
+% Now cluster from the peak data.
+[X, XProj, PCs, centroids, assignments, init_waveforms, ...
+      spike_time_array_cl] = ...
+        ClusterFromPeaks(whitened_data, peak_idx, waveform_len, ...
+                         nchan, cluster_pars);
+                     
+% Now try to 

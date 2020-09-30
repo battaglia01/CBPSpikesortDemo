@@ -64,7 +64,8 @@ end
 
 % Post-analysis
 params.plotting.calibration_mode=1;
-CBPStage('TimingComparison');
+ReplotTabsUpToStage('WaveformRefinement')
+CBPStage('GroundTruth');
 
 %% The user will pick the next stages on their own, but listed for reference...
 %CBPStage('Sonification');

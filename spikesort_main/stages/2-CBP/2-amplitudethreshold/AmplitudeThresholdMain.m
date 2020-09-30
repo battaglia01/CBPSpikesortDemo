@@ -12,7 +12,7 @@ num_points = params.amplitude.kdepoints;
 range = params.amplitude.kderange;
 peak_width = params.amplitude.kdewidth;
 
-CBPdata.amplitude.true_sp = {}; % not implemented yet
+CBPdata.amplitude.spike_time_array_processed = {}; % not implemented yet
 
 CBPdata.amplitude.amp_thresholds = ...
     cellfun(@(sa) ComputeKDEThreshold(sa, num_points, range, peak_width), ...

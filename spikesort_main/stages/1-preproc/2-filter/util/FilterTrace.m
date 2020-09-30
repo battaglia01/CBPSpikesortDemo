@@ -1,17 +1,18 @@
 % Filter trace
-function [data,coeffs] = FilterTrace(raw_data, filtering, rate)
+function [data,coeffs] = FilterTrace(raw_data, filtering, nyquist)
     if (isempty(filtering.freq))
       data = raw_data;
+      coeffs = {[1] [1]};
       return;
     end
     % Preprocessing parameters (see Harris et al 2000)
-    Wn = filtering.freq  / rate;
+    Wn = filtering.freq / nyquist;
 
     if ((length(Wn)==1) || (Wn(2) >= 1))
         switch(filtering.type)
             case 'butter'
                 [fb, fa] = butter(filtering.order, Wn(1), 'high');
-                fprintf('Highpass butter filtering with cutoff %f Hz\n', ...
+                fprintf('Highpass Butterworth filtering with cutoff %f Hz\n', ...
                     filtering.freq(1));
             case 'fir1'
                 fb = fir1(filtering.order, Wn(1), 'high');
@@ -34,7 +35,8 @@ function [data,coeffs] = FilterTrace(raw_data, filtering, rate)
     end
     coeffs = {fb fa};
     data = zeros(size(raw_data));
-    parfor chan = 1 : size(raw_data, 1)
+    %%@ changed parfor to for to avoid parallel pool starting up
+    for chan = 1:size(raw_data, 1)
         data(chan, :) = filter(fb, fa, raw_data(chan, :));
     end
 end

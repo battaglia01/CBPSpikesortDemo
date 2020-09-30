@@ -1,4 +1,4 @@
-function [spike_times, spike_times_ms, spike_amps, recon_snippets] = ...
+function [spike_time_array, spike_time_array_ms, spike_amps, recon_snippets] = ...
     SpikesortCBP(snippets, snippet_centers, waveforms, cbp_outer_pars, ...
                  cbp_pars, dt)
 
@@ -11,7 +11,7 @@ function [spike_times, spike_times_ms, spike_amps, recon_snippets] = ...
 % cbp_pars : pars for CBP inference.
 %
 % Returns:
-% spike_times : cell array of spike times, in ms
+% spike_time_array : cell array of spike times, in ms
 % spike_amps : cell array of spike magnitudes
 % recon_snippets : cell array of reconstructed snippets
 
@@ -41,17 +41,17 @@ end
 fprintf('Inferring spikes for whole data set...\n');
 fprintf('CBP parameters: Spacing=%s Lambda=%s\n', ...
     mat2str(cbp_pars.spacings, 3), mat2str(cbp_pars.lambda, 3));
-[spike_times_cell, spike_amps_cell, recon_snippets] = ...
+[spike_time_array_cell, spike_amps_cell, recon_snippets] = ...
     cbp_core_wrapper(snippets, waveforms, cbp_pars);
 clear all_info; % save memory
 
 % Convert cell arrays into vectors
-[spike_times, spike_amps] = ConvertSpikeTimesFromCell(spike_times_cell, ...
+[spike_time_array, spike_amps] = ConvertSpikeTimesFromCell(spike_time_array_cell, ...
     spike_amps_cell, snippet_centers);
 
 %convert to ms
-spike_times_ms = {};
-for n=1:length(spike_times)
-    spike_times_ms{n} = spike_times{n} * dt;
+spike_time_array_ms = {};
+for n=1:length(spike_time_array)
+    spike_time_array_ms{n} = spike_time_array{n} * dt;
 end
-spike_times_ms = spike_times_ms';
+spike_time_array_ms = spike_time_array_ms';

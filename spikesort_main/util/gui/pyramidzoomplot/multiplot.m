@@ -1,3 +1,29 @@
+% This function simultaneously plots many multi-channel lineseries at the
+% It creates multiple plots for each channel of the lineseries, and then
+% stores them all in a panel.
+%
+% This function is compatible with things like subplot and etc.
+%
+% The helper functions `multiplotxlabel`, `multiplotylabel`,
+% `multiplottitle`, and `multiplotlegend` do what you expect.
+%
+% See also `multiplotsubfunc` and `multiplotsubignore` for functions that
+% call to each subplot.
+% 
+% The arguments are either a panel and a cell array of plots, or just a
+% cell array of plots (in which situation multiplot will make a container
+% panel). The plots cell array has as elements a set of objects, each with
+% the following attributes:
+%        x: the x positions for the lineseries (uses 1:length(y) if not entered)
+%        y: the lineseries heights for each value of x
+%     args: the other arguments to pass to plot(...) as it is called
+%     chan: the channel that this timeseries is on
+% axisargs: arguments to pass to the axis object upon first creation (only
+%           the first plot object is read)
+%     type: `patch`, `rawplot`, or `plot` (latter is default)
+%
+% function panel = multiplot(panel, plots)
+% function panel = multiplot(plots)
 function panel = multiplot(varargin)
     if nargin > 1
         % panel given as first argument.
@@ -41,7 +67,7 @@ function panel = multiplot(varargin)
         xlabel(' ');
         ylabel(' ');
         title(' ');
-        drawnow;
+        drawnow; %%@ PROBABLY NEED THIS ON
         pause(0.01);
 
         % create panel to have same position as axes, store position
@@ -65,6 +91,9 @@ function panel = multiplot(varargin)
             new_ind = n;
             ax(new_ind) = subplot(new_r, new_c, new_ind, 'Parent', panel);
             setappdata(ax(n), 'patchesplotted', false);
+            if isfield(plots{1}, 'axisargs')
+                set(ax(n), plots{1}.axisargs{:});
+            end
         end
 
         % lastly, create invisible under_subplot axes for titles and labels
@@ -140,7 +169,9 @@ function panel = multiplot(varargin)
     % now delete old plots and save currplots
     if ~isempty(to_delete)
         % timer makes plotting smoother
-        t=timer('TimerFcn', @(~,~) delete(to_delete), 'StartDelay', 0.3);
+        t = timer('TimerFcn', @(~,~) delete(to_delete), ...
+                  'StopFcn', @(this,~) delete(this), ...
+                  'StartDelay', 0.3);
         start(t);
     end
     setappdata(panel, 'currplots', currplots);

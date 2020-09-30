@@ -20,7 +20,7 @@ function AmplitudeThresholdPlot(command)
 % -------------------------------------------------------------------------
 % Set up basics
     spike_amps = CBPdata.CBP.spike_amps;
-    spike_times_ms = CBPdata.CBP.spike_times_ms;
+    spike_time_array_ms = CBPdata.CBP.spike_time_array_ms;
     amp_thresholds = CBPdata.amplitude.amp_thresholds;
 
     f = GetCalibrationFigure;
@@ -28,12 +28,12 @@ function AmplitudeThresholdPlot(command)
     ampbins = params.amplitude.ampbins;
     dt = CBPdata.whitening.dt;
     wfnorms = cellfun(@(wf) norm(wf), CBPdata.CBP.init_waveforms);
-    true_sp = CBPdata.amplitude.true_sp;
+    spike_time_array_processed = CBPdata.amplitude.spike_time_array_processed;
     location_slack = params.amplitude.spike_location_slack;
 
     % get the cells to plot. This is whatever cells are listed as being
     % plottable in plot_cells, intersected with the total number of cells.
-    true_num_cells = params.clustering.num_waveforms;
+    true_num_cells = CBPdata.CBP.num_waveforms;
     plot_cells = intersect(CBPInternals.cells_to_plot, 1:true_num_cells);
     num_cells = length(plot_cells);
     CheckPlotCells(num_cells);
@@ -44,16 +44,16 @@ function AmplitudeThresholdPlot(command)
     end
 
     % Modify spiketimes by dt
-    true_sp = cellfun(@(st) st.*dt, true_sp, 'UniformOutput', false);
+    spike_time_array_processed = cellfun(@(st) st.*dt, spike_time_array_processed, 'UniformOutput', false);
     slack = location_slack*dt;
 
     % Store initial thresholding
-    threshspiketimes = cell(size(spike_times_ms));
+    threshspiketimes = cell(size(spike_time_array_ms));
     for n=1:num_cells
         c = plot_cells(n);
-        threshspiketimes{c} = spike_times_ms{c}(spike_amps{c} > amp_thresholds(c));
+        threshspiketimes{c} = spike_time_array_ms{c}(spike_amps{c} > amp_thresholds(c));
     end
-    CBPdata.amplitude.thresh_spike_times_ms = threshspiketimes;
+    CBPdata.amplitude.thresh_spike_time_array_ms = threshspiketimes;
 
 % -------------------------------------------------------------------------
 % Set up new tab and panel
@@ -72,10 +72,11 @@ function AmplitudeThresholdPlot(command)
                 'Units','normalized', ...
                 'Position',[p_left p_bottom p_width p_height], ...
                 'Tag', 'amp_panel');
+    RegisterTag(p);
 
     %create scrollbars
     %%@ not needed - left for reference
-    if num_cells > max_n
+%     if num_cells > max_n
 %         uicontrol('Units','normalized',...
 %                   'Style','Slider',...
 %                   'Position',[.98,.03,.02,.97],...
@@ -97,7 +98,7 @@ function AmplitudeThresholdPlot(command)
 %                   'Tag','scrollhoriz',...
 %                   'Parent',parent,...
 %                   'Callback',@(scr,event) scrollhoriz);
-    end
+%     end
 
 % -------------------------------------------------------------------------
 % Do all subplotting
@@ -112,7 +113,7 @@ function AmplitudeThresholdPlot(command)
         else
             [H, X] = hist(spike_amps{c}, spike_amps{c}(1) + linspace(-.5,.5,50));
         end
-        hh = bar(X,H);
+        hh = bar(X, H);
         set(hh, 'FaceColor', params.plotting.cell_color(c), ...
                 'EdgeColor', params.plotting.cell_color(c));
         title(sprintf('Amplitudes, cell %d', c));
