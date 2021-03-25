@@ -32,6 +32,8 @@ function pyr = MinMaxPyramid(in)
 
 
     % now do the tree and store the result in the pyramid
+%     pyr.maxpyr{end+1} = maxtmp;
+%     pyr.minpyr{end+1} = maxtmp;
     for n=1:log2(length(mintmp))
         maxtmp = max([downsample(maxtmp,2);downsample(maxtmp,2,1)]);
         mintmp = min([downsample(mintmp,2);downsample(mintmp,2,1)]);
@@ -40,7 +42,7 @@ function pyr = MinMaxPyramid(in)
         % and store the result in the pyramid
         % note we already threw away the initial level by not storing it,
         % so four more to go
-        if n > 5
+        if n >= 5
             pyr.maxpyr{end+1} = maxtmp;
             pyr.minpyr{end+1} = mintmp;
         end

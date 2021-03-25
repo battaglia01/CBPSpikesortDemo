@@ -19,10 +19,10 @@ function RawDataPlot(command)
 
     %plot channels
     plots = {};
-    for n=1:size(CBPdata.rawdata.data,1)
+    for n=1:size(CBPdata.raw_data.data,1)
         plots{end+1} = [];
-        plots{end}.dt = CBPdata.rawdata.dt;
-        plots{end}.y = CBPdata.rawdata.data(n,:)';
+        plots{end}.dt = CBPdata.raw_data.dt;
+        plots{end}.y = CBPdata.raw_data.data(n,:)';
     end
 
     PyramidZoomMultiPlot(plots);
@@ -30,7 +30,7 @@ function RawDataPlot(command)
 
     multiplotxlabel('Time (sec)');
     multiplotylabel('Voltage');
-    multiplottitle(sprintf('Raw data, nChannels=%d, %.1fkHz', CBPdata.rawdata.nchan, 1/(1000*CBPdata.rawdata.dt)));
+    multiplottitle(sprintf('Raw data, nChannels=%d, %.1fkHz', CBPdata.raw_data.nchan, 1/(1000*CBPdata.raw_data.dt)));
 
 % -------------------------------------------------------------------------
 % Plot Frequency Domain (bottom subplot)
@@ -39,14 +39,14 @@ function RawDataPlot(command)
 
     % Get DFT Magnitude. If multiple channels, take the RMS of the magnitude
     % of each frequency
-    dftMag = abs(fft(CBPdata.rawdata.data,[],2));
-    if (CBPdata.rawdata.nchan > 1)
+    dftMag = abs(fft(CBPdata.raw_data.data,[],2));
+    if (CBPdata.raw_data.nchan > 1)
         dftMag = sqrt(sum(dftMag.^2));        %%@ RMS vs L2?
     end
 
     % Add indicator as to which frequencies are going to be filtered, unless
     % filtering frequencies are empty
-    maxDFTind = floor(CBPdata.rawdata.nsamples/2);
+    maxDFTind = floor(CBPdata.raw_data.nsamples/2);
     minDFTval = min(dftMag(2:maxDFTind));
     maxDFTval = 1.2*max(dftMag(2:maxDFTind));
     hold on;
@@ -58,14 +58,14 @@ function RawDataPlot(command)
         patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], noisecolor);
         if (length(params.filtering.freq) >  1)
             f2 = params.filtering.freq(2);
-            if (f2 < 1/(CBPdata.rawdata.dt*2))
-                xr = [f2 1/(CBPdata.rawdata.dt*2)];
+            if (f2 < 1/(CBPdata.raw_data.dt*2))
+                xr = [f2 1/(CBPdata.raw_data.dt*2)];
                 patch([xr xr(2) xr(1)], [yr(1) yr yr(2)], noisecolor);
             end
         end
         legend('Frequencies to be filtered');
     end
-    plot(([1:maxDFTind]-1)/(maxDFTind*CBPdata.rawdata.dt*2), dftMag(1:maxDFTind), 'HandleVisibility', 'off');
+    plot(([1:maxDFTind]-1)/(maxDFTind*CBPdata.raw_data.dt*2), dftMag(1:maxDFTind), 'HandleVisibility', 'off');
     hold off;
 
     axis tight; set(gca,'Ylim', [0 maxDFTval]);  set(gca, 'Yscale', 'log');

@@ -1,5 +1,5 @@
 function CBPRepeat
     global CBPInternals;
-    oldstage = CBPInternals.mostrecentstage.name;
+    oldstage = CBPInternals.most_recent_stage.name;
     CBPStage(oldstage);
 end

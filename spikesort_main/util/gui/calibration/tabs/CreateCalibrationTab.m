@@ -25,10 +25,11 @@ function t = CreateCalibrationTab(name, stagename, varargin)
 
     % Now change the selected tab, and give us a pair of axes to work with.
     tg.SelectedTab = t;
-    a = axes('Parent',t);
+    p = uipanel(t);
+    a = axes('Parent',p);
 
     % Also, update the currently selected tab stage
-    CBPInternals.currselectedtabstage = GetStageFromName(stagename);
+    CBPInternals.curr_selected_tab_stage = GetStageFromName(stagename);
     
     % Lastly, if tab group is disabled, set color to gray
     if ~getappdata(tg, "Enabled")
@@ -36,4 +37,5 @@ function t = CreateCalibrationTab(name, stagename, varargin)
         drawnow;
         pause(0.01);
     end
+    
 end

@@ -59,7 +59,7 @@ function CBPStagePlot(stageobj)
 
     % Put the status and tabs back, and as a precaution, reset LaF
     SetCalibrationLoading(false);
-    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.original_LnF);
 %%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end
 

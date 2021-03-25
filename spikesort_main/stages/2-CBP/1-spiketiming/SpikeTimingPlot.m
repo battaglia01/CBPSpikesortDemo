@@ -6,6 +6,7 @@ function SpikeTimingPlot(command)
     global CBPdata params CBPInternals;
 
     if nargin == 1 & isequal(command, 'disable')
+        DeleteCalibrationTab('CBP Waveforms, PCs');
         DeleteCalibrationTab('CBP Results');
         return;
     end
@@ -28,7 +29,20 @@ function SpikeTimingPlot(command)
     plot_cells = intersect(CBPInternals.cells_to_plot, 1:true_num_cells);
     num_cells = length(plot_cells);
     CheckPlotCells(num_cells);
+    
+% =========================================================================
+% TAB 1
+% -------------------------------------------------------------------------
+% Plot Timeseries data (top-left subplot)
+    CreateCalibrationTab('CBP Waveforms, PCs', 'SpikeTiming');
+    cla('reset');
+    PlotPCA(CBPdata.CBP.X, CBPdata.CBP.XProj, CBPdata.CBP.assignments, ...
+            CBPdata.CBP.num_waveforms);
+    title(sprintf('CBP waveforms (%d spike types, %d plotted)', ...
+                  true_num_cells, num_cells));
 
+% =========================================================================
+% TAB 2
 % -------------------------------------------------------------------------
 % Plot Timeseries data (top-left subplot)
     CreateCalibrationTab('CBP Results', 'SpikeTiming');

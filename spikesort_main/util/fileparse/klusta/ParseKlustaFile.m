@@ -1,9 +1,10 @@
-% Parses a Klusta .prm file.
+% Parses a Klusta .prm file, which imports the associated raw data and
+% uses the .prm file to auto-set our parameters.
 % Reference prm at https://github.com/klusta-team/example/blob/master/params.prm
 function ParseKlustaFile(filename)
     global CBPdata params CBPInternals
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % BASICS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BASICS
 
     % get path from filename. strange way of doing it, but c'est la
     % matlab...
@@ -15,18 +16,22 @@ function ParseKlustaFile(filename)
     % read the code and parse via Python's parser. Stores the resulting
     % variables in our "py_env" dictionary. Pop the extraneous
     % "__builtins__" thing
-    py_env = py.dict;
-    py_code = fileread(filename);
-    py.eval(py.compile(py_code,'asdf','exec'),py_env)
-    py_env.pop('__builtins__');
+    try
+        py_env = py.dict;
+        py_code = fileread(filename);
+        py.eval(py.compile(py_code,'asdf','exec'),py_env)
+        py_env.pop('__builtins__');
+    catch err
+        error("Error parsing " + filename + ". Is this Python file malformed?");
+    end
 
     % Convert from python dictionary to our CBPdata/params format
     CBPdata = [];
     params = [];
 
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % METADATA
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% METADATA
 
     % add notes about the import
     CBPdata.importnotes = [];
@@ -34,21 +39,21 @@ function ParseKlustaFile(filename)
     CBPdata.importnotes.origfile = filename;
     CBPdata.importnotes.origparams = py_env;
 
-    CBPdata.experimentname = char(py_env.get('experiment_name'));
+    CBPdata.experiment_name = char(py_env.get('experiment_name'));
 
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % READ DATA FILE AND CONCATENATE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% READ DATA FILE AND CONCATENATE
     %
     % "traces" dict:
-    %   raw_data_files -> CBPdata.rawdata.data (concatenate)
-    %   1/sample_rate -> CBPdata.rawdata.dt
-    %   n_channels -> nothing (num of columns in CBPdata.rawdata.data)
+    %   raw_data_files -> CBPdata.raw_data.data (concatenate)
+    %   1/sample_rate -> CBPdata.raw_data.dt
+    %   n_channels -> nothing (num of columns in CBPdata.raw_data.data)
     %   dtype -> nothing, just used internally for file parsing
     %   voltage_gain -> nothing -- just wastes precision as we rescale anyway
 
-    % get rawdata - make sure file is there, and all metadata is present
-    CBPdata.rawdata = [];
+    % get raw_data - make sure file is there, and all metadata is present
+    CBPdata.raw_data = [];
     assertKeyExists(py_env, 'traces/raw_data_files', ...
                     'ERROR: traces.raw_data_files missing!');
     assertKeyExists(py_env, 'traces/sample_rate', ...
@@ -65,7 +70,7 @@ function ParseKlustaFile(filename)
     files_to_read_py = getKey(py_env, 'traces/raw_data_files');
     datatype = getKey(py_env, 'traces/dtype', 'char');
     n_channels = getKey(py_env, 'traces/n_channels', 'double');
-    CBPdata.rawdata.data = [];
+    CBPdata.raw_data.data = [];
     %%@ NOTE - this could be put into its own "readRAW" file or something,
     %%@ but some of this may be particular to Python
     for fname_py = files_to_read_py
@@ -75,17 +80,17 @@ function ParseKlustaFile(filename)
         assert(isfile(fname), "ERROR: referenced file '" + fname + ...
                               "' doesn't exist!");
         newdata = UnserializeRawDataFromFile(fname, datatype, n_channels);
-        CBPdata.rawdata.data = [CBPdata.rawdata.data newdata];
+        CBPdata.raw_data.data = [CBPdata.raw_data.data newdata];
         fclose(f);
     end
     cd(old_dir);
 
-    CBPdata.rawdata.dt = 1/getKey(py_env, 'traces/sample_rate', 'double');
-    CBPdata.rawdata.nchan = n_channels;
+    CBPdata.raw_data.dt = 1/getKey(py_env, 'traces/sample_rate', 'double');
+    CBPdata.raw_data.nchan = n_channels;
 
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % "SPIKEDETEKT" PARAMS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% "SPIKEDETEKT" PARAMS
 
     % Preliminary convenience variables
     samplerate = getKey(py_env, 'traces/sample_rate', 'double');
@@ -127,13 +132,13 @@ function ParseKlustaFile(filename)
     end
     % NOTE - this has a "chunk_overlap_seconds" parameter too, which we
     % don't seem to use...
- 
-    
+
+
     % Thresholds
     %   n_excerpts -> NOT IMPLEMENTED (part of their white noise detection)
     %   excerpt_size_seconds -> NOT IMPLEMENTED (likewise)
     %   threshold_strong_std_factor -> params.clustering.spike_threshold
-    %                                  
+    %
     %   threshold_weak_std_factor ->   params.partition.silence_threshold
     %
     %   use_single_threshold -> assume the weak one is 80% of the strong
@@ -150,23 +155,24 @@ function ParseKlustaFile(filename)
                           'double');
         params.clustering.spike_threshold = strong_s;
     end
-    
+
     % check if use_single_threshold is set before setting the weak
     % threshold
     use_single_threshold = false;
     if keyExists(py_env, 'spikedetekt/use_single_threshold')
         use_single_threshold = ...
-            getKey(py_env, 'spikedetekt/use_single_threshold', logical);
+            getKey(py_env, 'spikedetekt/use_single_threshold', 'logical');
     end
-       
-    % If use_single_threshold isn't true and key exists, set the silence 
+
+    % If use_single_threshold isn't true and key exists, set the silence
     % threshold to the weak threshold. If not, and if the strong threshold
     % is set, set the weak threshold 80% of the strong threshold. Otherwise
     % just leave everything unset.
     if ~use_single_threshold && keyExists(py_env, 'spikedetekt/threshold_weak_std_factor')
         weak_s = getKey(py_env, 'spikedetekt/threshold_weak_std_factor',...
                         'double');
-        params.partition.silence_threshold = weak_s;
+        %%@ NOTE - doesn't wokr well. Just don't set this at all
+        %params.partition.silence_threshold = weak_s;
     elseif keyExists(py_env, 'spikedetekt/threshold_weak_std_factor') && ...
            ~keyExists(py_env, 'spikedetekt/threshold_strong_std_factor')
         % if we've gotten here, then strong_std_factor isn't set but
@@ -175,7 +181,7 @@ function ParseKlustaFile(filename)
         % threshold.
         weak_s = .8 * getKey(py_env, 'spikedetekt/threshold_strong_std_factor',...
                              'double');
-        params.partition.silence_threshold = weak_s;
+        params.clustering.spike_threshold = weak_s;
     end
 
 
@@ -183,8 +189,8 @@ function ParseKlustaFile(filename)
     %   connected_component_join_size -> NOT IMPLEMENTED, I don't think.
 
     % Spike Extractions
-    %   extract_s_before -> params.rawdata.waveform_len
-    %   extract_s_after -> params.rawdata.waveform_len
+    %   extract_s_before -> params.general.spike_waveform_len
+    %   extract_s_after -> params.general.spike_waveform_len
     %                   (our version is symmetrical - take max of both,
     %                    multiply by 2 and add 1)
     %   weight_power -> NOT IMPLEMENTED (p-norm, we always do RMS)
@@ -198,8 +204,8 @@ function ParseKlustaFile(filename)
 
 
     % Features -- related to PCA?
-    %    n_features_per_channel: IGNORE UNTIL I KNOW WHAT FEATURES ARE
-    %    pca_n_waveforms_max: IGNORE UNTIL I KNOW WHAT FEATURES ARE
+    %    n_features_per_channel: %%@IGNORE UNTIL I KNOW WHAT FEATURES ARE
+    %    pca_n_waveforms_max: %%@IGNORE UNTIL I KNOW WHAT FEATURES ARE
 
     % KlustaKwik2 params
     %   num_starting_clusters -> params.clustering.num_waveforms
@@ -208,14 +214,13 @@ function ParseKlustaFile(filename)
         params.clustering.num_waveforms = getKey(py_env, ...
             'klustakwik2/num_starting_clusters', 'double');
     end
-    
 
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    % CLEANUP
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CLEANUP
 
     % reorder field names in CBPdata and params
-    CBPfields = {'filename', 'experimentname', 'importnotes', ...
-                 'rawdata', 'filtering', 'whitening', 'clustering', ...
+    CBPfields = {'filename', 'experiment_name', 'importnotes', ...
+                 'raw_data', 'filtering', 'whitening', 'clustering', ...
                  'CBP', 'amplitude', 'clusteringcomparison', ...
                  'sonification'};
     parfields = {'plotting', 'general', ...
@@ -239,11 +244,153 @@ function ParseKlustaFile(filename)
 
     CBPdata = orderfields(CBPdata, currCBPfields);
     params = orderfields(params, currparfields);
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CLUSTERING
+    %
+    % If the "kwik" file is found, corresponding to the filename referenced
+    % in the .prm file, we will also fill all of the fields up to the
+    % InitializeWaveform stage. Since there is no Whitening, and we may not
+    % have access to the raw data, we will just use the main data set for
+    % all three initial stages with zero filtering and an identity
+    % whitening matrix.
+    filename_kwik = pathname + "/" + CBPdata.experiment_name + ".kwik";
+    if isfile(filename_kwik)
+        % First, fill in default parameters (although we will probably be
+        % filling in anyway!
+        params.filtering.freq = [];
+        FillInDefaultParameters;
+%
+%         % Now, turn off calibration mode and run up to the Whitening Stage,
+%         % to auto-populate that data
+%         params.plotting.calibration_mode = false;
+%         InitializeSession(filename);
+%         CBPStage("RawData");
+%         CBPStage("Filter");
+%         CBPStage("Whiten");
+%         CBPInternals.already_initialized_session = true;
+%
+%         % Now, also manually shift the internals *as though* we'd processed
+%         % the Initialize Waveform stage, without really having to do it
+%         CBPInternals.most_recent_stage = GetStageFromName("InitializeWaveform");
+%         CBPInternals.curr_selected_tab_stage = GetStageFromName("InitializeWaveform");
+%         CBPdata.last_stage_name = "InitializeWaveform";
+%
+%         % set calibration mode back
+%         params.plotting.calibration_mode = true;
+
+
+        % Now populate CBPdata.external data with the data from the
+        % "klustering." First get all channel groups
+        ch_grp_h5 = h5info(filename_kwik, "/channel_groups/");
+        ch_grp_list = {ch_grp_h5.Groups.Name};
+
+        % Now, for each channel group, get the clusters for that group.
+        % These are cell arrays of arrays, each entry corresponding to the cluster
+        % information for a particular "channel group."
+        %
+        % We start with segment_centers and assignments, and then from there we
+        % build X and the centroids, and then XProj and the PCs. We also adjust the
+        % cluster ID #'s at the end.
+        segment_centers = {};
+        assignments = {};
+        current_group_index = 1;
+        for n=1:length(ch_grp_list)
+            % current channel group name
+            ch_grp_name = ch_grp_list{n};
+
+            % h5 object for the above group name
+            ch_grp_h5 = h5info(filename_kwik, ch_grp_name);
+
+            % channel object for the above group
+            channels_h5 = h5info(filename_kwik, ch_grp_name + "/channels");
+
+            % list of channels for this current group
+            channels = {channels_h5.Groups.Name};
+            channels = cellfun(@(x) str2num(x(end)), channels) + 1;
+
+            segment_centers{current_group_index} = ...
+                double(h5read(filename_kwik, ch_grp_name + "/spikes/time_samples"));
+            assignments{current_group_index} = ...
+                    double(h5read(filename_kwik, ch_grp_name + "/spikes/clusters/main"));
+
+            % increment group index
+            current_group_index = current_group_index + 1;
+        end
+
+        % Now, at this point, we have a cell array of arrays of spike times and
+        % corresponding assignments, one for each group. The assignments may not
+        % all be taken, so first we make sure that the first entry in the cell
+        % array has assignments 1-N taken, and then N+1-M, and so on.
+        %%@ code reused from MergeClusters; may be good to make into a reusable
+        %%function
+        % redo assignment numbers
+        for l=1:length(assignments)
+            % next_num = 1;
+            % for n=1:max(assignments{l})
+            %     assignment_inds = find(assignments{l} == n);
+            %     if ~isempty(assignment_inds)
+            %         assignments{l}(assignment_inds) = next_num;
+            %         next_num = next_num + 1;
+            %     end
+            % end
+            assignments{l} = CleanUpAssignmentNumbers(assignments{l});
+        end
+
+        % Now, we also adjust the indices so that each successive cell array entry
+        % builds on the last one
+        last_entry = 0;
+        for l=1:length(assignments)
+            assignments{l} = assignments{l} + last_entry;
+            last_entry = max(assignments{l});
+        end
+
+        % Add fields to CBPdata
+        CBPdata.external = [];
+        CBPdata.external.segment_centers = vertcat(segment_centers{:});
+        CBPdata.external.assignments = vertcat(assignments{:});
+
+        % Now adjust the number of waveforms
+        params.clustering.num_waveforms = last_entry;
+            %
+            % [CBPdata.external.X, CBPdata.external.centroids, ...
+            %  CBPdata.external.assignments, CBPdata.external.PCs, ...
+            %  CBPdata.external.XProj, CBPdata.external.init_waveforms, ...
+            %  CBPdata.external.spike_time_array_cl] = ...
+            %     GetAllSpikeInfo(...
+            %         CBPdata.external.segment_centers, ...
+            %         CBPdata.external.assignments);
+
+%         % lastly, reorganize the CBPdata fields
+%         CBPdata.external = orderfields(CBPdata.external, ...
+%             ["centroids", "assignments", "X", "XProj", "PCs", ...
+%              "segment_centers", "init_waveforms", "spike_time_array_cl"]);
+
+        % reset number of passes
+        % CBPdata.CBP.num_passes = 0;
+
+        % Now begin the session
+                % InitializeSession(filename);
+                % CBPStage("RawData");
+    end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GROUND TRUTH
+    %
+    % If a ".mat" file is found in the same directory with the same name,
+    % then we check it for ground truth information (we then assume this
+    % was exported from CBP/MATLAB to begin with)
+    filename_mat = [filename(1:end-4) '.mat'];
+    if isfile(filename_mat)
+        tmp_load = load(filename_mat, "CBPdata");
+        CBPdata.ground_truth = tmp_load.CBPdata.ground_truth;
+    end
 end
-    
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % HELPER FUNCTIONS
-    
+
 function out = getKey(env, identifier, format)
     out = env;
     keys = strsplit(identifier,'/');
@@ -253,7 +400,7 @@ function out = getKey(env, identifier, format)
             break; % end the loop here; don't call get() again
         end
     end
-    
+
     if nargin > 2
         if isa(out, 'py.NoneType')
             out = cast([], format);

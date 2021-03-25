@@ -3,17 +3,17 @@ function StageInstructions
     fprintf('\n');
     fprintf('  Current data is in "CBPdata", current params in "params".\n');
 
-    if CBPInternals.mostrecentstage.next
-        fprintf('  Next stage is:\n    %s\n\n', CBPInternals.mostrecentstage.next)
+    if CBPInternals.most_recent_stage.next
+        fprintf('  Next stage is:\n    %s\n\n', CBPInternals.most_recent_stage.next)
     else
         fprintf('  This is the last stage!\n');
     end
 
-    if CBPInternals.mostrecentstage.showreview
+    if CBPInternals.most_recent_stage.showreview
         fprintf('  Type "CBPReview" below to go to Post-Analysis!\n');
         fprintf('  Or type "CBPNext" below to do another iteration of CBP\n');
         fprintf('\n');
-    elseif CBPInternals.mostrecentstage.next
+    elseif CBPInternals.most_recent_stage.next
         fprintf('  Type "CBPNext" below to proceed\n');
     end
 

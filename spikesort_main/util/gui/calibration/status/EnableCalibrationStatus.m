@@ -3,5 +3,5 @@
 
 function EnableCalibrationStatus
     global CBPInternals;
-    SetCalibrationStatusStage(CBPInternals.currselectedtabstage);
+    SetCalibrationStatusStage(CBPInternals.curr_selected_tab_stage);
 end

@@ -24,7 +24,7 @@ function h = CreateParamsFigure
                        'Units', 'normalized', ...
                        'Position', [0 0.075 1 0.925]);
     RegisterTag(tg);
-    javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    javax.swing.UIManager.setLookAndFeel(CBPInternals.original_LnF);
     drawnow;
     pause(0.01);
 
@@ -42,6 +42,6 @@ function h = CreateParamsFigure
     sb = GetParamsStatus;
 
     % Restore original look and feel
-    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.original_LnF);
 %%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end

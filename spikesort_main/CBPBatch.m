@@ -58,7 +58,6 @@ CBPStage('InitializeWaveform');
 for n=1:num_iterations
     CBPStage('SpikeTiming');
     CBPStage('AmplitudeThreshold');
-    CBPStage('ClusteringComparison');
     CBPStage('WaveformRefinement');
 end
 

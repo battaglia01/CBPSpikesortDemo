@@ -13,7 +13,7 @@
 %   - noise_threshold: noise zones must have cross-channel L2-norm less than this.
 %   - min_zone_len: noise zones must have duration of at least this many samples.
 %   - num_acf_lags: number of samples over which auto-correlation is estimated.
-% FIXME?: Appears to clip rawdata
+% FIXME?: Appears to clip raw_data
 %%@ (Mike's note - old FIXME, may be better now)
 
 function WhitenMain

@@ -30,8 +30,8 @@ function ParseNeuroscopeFile(filename)
     raw = raw * (voltageRange/2 - offset)/amplification;
     
     % now add everything to CBPdata
-    CBPdata.rawdata.data = raw;
-    CBPdata.rawdata.dt = 1/samplingRate;
+    CBPdata.raw_data.data = raw;
+    CBPdata.raw_data.dt = 1/samplingRate;
     CBPdata.nchan = nChannels;
     CBPdata.nsamples = size(raw,2);
 end 

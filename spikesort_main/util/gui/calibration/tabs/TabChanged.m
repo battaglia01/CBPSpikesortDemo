@@ -9,9 +9,9 @@ function TabChanged(tabgroup, eventData)
     end
     
     % if we got this far then we're good to go with the change.
-    % first, update the internal "currselectedtabstage"
+    % first, update the internal "curr_selected_tab_stage"
     newstageobj = getappdata(eventData.NewValue, 'stageobj');
-    CBPInternals.currselectedtabstage = newstageobj;
+    CBPInternals.curr_selected_tab_stage = newstageobj;
 
     % now set the new calibration status
     SetCalibrationStatusStage(newstageobj);
@@ -21,7 +21,7 @@ function TabChanged(tabgroup, eventData)
     % of handle
     if newstageobj.needsreplot
         CBPStagePlot(newstageobj);
-        CBPInternals.currselectedtabstage.needsreplot = false;
+        CBPInternals.curr_selected_tab_stage.needsreplot = false;
         newstageobj.needsreplot = false;
     end
 end

@@ -37,12 +37,13 @@ end
 ecos(1, sparse(1), 1, struct('l', 1, 'q', []), struct('verbose', 0))
 
 % Initialize "CBPInternals" global variable
+CBPInternals = [];
 CBPInternals.stages = {};
 CBPInternals.raninit = true;
-CBPInternals.mostrecentstage = [];
-CBPInternals.currselectedtabstage = [];
-CBPInternals.originalLnF = javax.swing.UIManager.getLookAndFeel;
-CBPInternals.cells_to_plot = 1:9;   % default clusters to plot, can be changed
+CBPInternals.most_recent_stage = [];
+CBPInternals.curr_selected_tab_stage = [];
+CBPInternals.original_LnF = javax.swing.UIManager.getLookAndFeel;
+CBPInternals.cells_to_plot = 1:12;   % default clusters to plot, can be changed
 
 % Register file formats
 %%@ NOTE - these must be chars, not strings, due to bug in MATLAB's
@@ -57,6 +58,8 @@ RegisterFileFormat('*.dat', 'Raw DAT file', @ParseRawDataFile, 'import');
 RegisterFileFormat('*.mat', 'CBP file', @ExportCBPFile, 'export');
 RegisterFileFormat('*.npy', 'Phy file', @ExportPhyFile, 'export');
 RegisterFileFormat('*.mda', 'MDA file', @ExportMDAFile, 'export');
+RegisterFileFormat('*.dat', 'Raw DAT file', @ExportRawDataFile, 'export');
+RegisterFileFormat('*.prm', 'Klusta files', @ExportKlustaFile, 'export');
 
 %=========================================
 % Preprocessing
@@ -106,19 +109,11 @@ SpikeTimingStage.replotoncellchange = true;
 
 AmplitudeThresholdStage = StageObject;
 AmplitudeThresholdStage.name = 'AmplitudeThreshold';
-AmplitudeThresholdStage.next = 'ClusteringComparison';
+AmplitudeThresholdStage.next = 'WaveformRefinement';
 AmplitudeThresholdStage.category = 'CBP';
 AmplitudeThresholdStage.description = 'Identify spikes by thresholding amplitudes of each cell';
 AmplitudeThresholdStage.paramname = 'amplitude';
 AmplitudeThresholdStage.replotoncellchange = true;
-
-ClusteringComparisonStage = StageObject;
-ClusteringComparisonStage.name = 'ClusteringComparison';
-ClusteringComparisonStage.next = 'WaveformRefinement';
-ClusteringComparisonStage.category = 'CBP';
-ClusteringComparisonStage.description = 'PCA Comparison';
-ClusteringComparisonStage.paramname = 'clustering';
-ClusteringComparisonStage.replotoncellchange = true;
 
 WaveformRefinementStage = StageObject;
 WaveformRefinementStage.name = 'WaveformRefinement';
@@ -131,7 +126,6 @@ WaveformRefinementStage.replotoncellchange = true;
 
 RegisterStage(SpikeTimingStage);
 RegisterStage(AmplitudeThresholdStage);
-RegisterStage(ClusteringComparisonStage);
 RegisterStage(WaveformRefinementStage);
 
 %=========================================
@@ -141,16 +135,24 @@ GroundTruthStage.name = 'GroundTruth';
 GroundTruthStage.next = 'TimingComparison';
 GroundTruthStage.category = 'Post-Analysis';
 GroundTruthStage.description = 'Ground Truth';
-GroundTruthStage.paramname = 'groundtruth';
+GroundTruthStage.paramname = 'ground_truth';
 GroundTruthStage.replotoncellchange = true;
 
 TimingComparisonStage = StageObject;
 TimingComparisonStage.name = 'TimingComparison';
-TimingComparisonStage.next = 'Sonification';
+TimingComparisonStage.next = 'ClusteringComparison';
 TimingComparisonStage.category = 'Post-Analysis';
 TimingComparisonStage.description = 'Timing Comparison';
 TimingComparisonStage.paramname = 'postproc';
 TimingComparisonStage.replotoncellchange = true;
+
+ClusteringComparisonStage = StageObject;
+ClusteringComparisonStage.name = 'ClusteringComparison';
+ClusteringComparisonStage.next = 'Sonification';
+ClusteringComparisonStage.category = 'CBP';
+ClusteringComparisonStage.description = 'PCA Comparison';
+ClusteringComparisonStage.paramname = 'postproc';
+ClusteringComparisonStage.replotoncellchange = true;
 
 SonificationStage = StageObject;
 SonificationStage.name = 'Sonification';
@@ -168,6 +170,7 @@ GreedySpikeStage.paramname = 'postproc';
 
 RegisterStage(GroundTruthStage);
 RegisterStage(TimingComparisonStage);
+RegisterStage(ClusteringComparisonStage);
 RegisterStage(SonificationStage);
 RegisterStage(GreedySpikeStage);
 

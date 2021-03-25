@@ -8,55 +8,50 @@ global CBPdata params CBPInternals;
 % Print the current sorting permutation for Clustering
 fprintf('\n');
 fprintf('*** CLUSTERING RESULTS ***\n');
-fprintf('Best labeling permutation:\n');
-fprintf('(nth entry is the estimated waveform assignment for ground truth waveform ID #n)\n');
-fprintf(['    [' num2str(CBPdata.groundtruth.best_ordering_cl) ']\n\n']);
+fprintf('Best-fit Assignment Matrix:\n');
+fprintf('(Rows are estimated, Cols are true, a "1" indicates a pairing)\n');
+disp(num2str(CBPdata.ground_truth.best_ordering_cl));
+fprintf('\n');
 
 % Then print the error matrices
 fprintf('False negative assignment matrix:\n');
-disp(CBPdata.groundtruth.miss_mtx_cl);
+disp(CBPdata.ground_truth.miss_mtx_cl);
 fprintf('False positive assignment matrix:\n');
-disp(CBPdata.groundtruth.fp_mtx_cl);
+disp(CBPdata.ground_truth.fp_mtx_cl);
 fprintf('Total error assignment matrix:\n');
-disp(CBPdata.groundtruth.all_err_mtx_cl);
+disp(CBPdata.ground_truth.all_err_mtx_cl);
 fprintf('\n');
     
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Print the current sorting permutation for CBP
 fprintf('\n');
 fprintf('*** CBP RESULTS ***\n');
-fprintf('Best labeling permutation:\n');
-fprintf('(nth entry is the estimated waveform assignment for ground truth waveform ID #n)\n');
-fprintf(['    [' num2str(CBPdata.groundtruth.best_ordering_cbp) ']\n\n']);
+fprintf('Best-fit Assignment Matrix:\n');
+fprintf('(Rows are estimated, Cols are true, a "1" indicates a pairing)\n');
+disp(num2str(CBPdata.ground_truth.best_ordering_cbp));
+fprintf('\n');
 
 % Then print the error matrices
 fprintf('False negative assignment matrix:\n');
-disp(CBPdata.groundtruth.miss_mtx_cbp);
+disp(CBPdata.ground_truth.miss_mtx_cbp);
 fprintf('False positive assignment matrix:\n');
-disp(CBPdata.groundtruth.fp_mtx_cbp);
+disp(CBPdata.ground_truth.fp_mtx_cbp);
 fprintf('Total error assignment matrix:\n');
-disp(CBPdata.groundtruth.all_err_mtx_cbp);
+disp(CBPdata.ground_truth.all_err_mtx_cbp);
 fprintf('\n');
 
-% and lastly, evaluate results
-[total_misses_cl, total_false_positives_cl, misses_cl, ...
- false_positives_cl] = EvaluateSortingLowLevel( ...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Print summary of both results
+fprintf('=Clustering Results=\n\t%s', SortingEvaluationStr( ...
+        CBPdata.ground_truth.spike_time_array_processed, ...
         CBPdata.clustering.spike_time_array_cl, ...
-        CBPdata.groundtruth.spike_time_array_processed, ...
-        params.amplitude.spike_location_slack);
-fprintf('Clustering: %s', SortingEvaluationStr( ...
-        CBPdata.groundtruth.spike_time_array_processed, ...
-        CBPdata.clustering.spike_time_array_cl, ...
-        total_misses_cl, total_false_positives_cl));
-    
-[total_misses, total_false_positives, prune_est_times, misses, ...
- false_positives] = EvaluateSorting( ...
-        CBPdata.CBP.spike_time_array, ...
-        CBPdata.CBP.spike_amps, ...
-        CBPdata.groundtruth.spike_time_array_processed, ...
-        'threshold', CBPdata.amplitude.amp_thresholds, ...
-        'location_slack', params.amplitude.spike_location_slack);
-fprintf('       CBP: %s', SortingEvaluationStr( ...
-        CBPdata.groundtruth.spike_time_array_processed, ...
-        prune_est_times, total_misses, ...
-        total_false_positives));
+        CBPdata.ground_truth.total_true_positives_cl, ...
+        CBPdata.ground_truth.total_misses_cl, ...
+        CBPdata.ground_truth.total_false_positives_cl));
+
+fprintf('=CBP Results=\n\t%s', SortingEvaluationStr( ...
+        CBPdata.ground_truth.spike_time_array_processed, ...
+        CBPdata.waveform_refinement.spike_time_array_thresholded, ...
+        CBPdata.ground_truth.total_true_positives_cbp, ...
+        CBPdata.ground_truth.total_misses_cbp, ...
+        CBPdata.ground_truth.total_false_positives_cbp));

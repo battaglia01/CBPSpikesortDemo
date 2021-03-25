@@ -5,8 +5,12 @@
 %%@ NOTE: this is basically the same as adding a new blank "dummy"
 %%@ waveform, then "reassessing" that waveform, which is what we'll do
 
-function AddClusters(num_new)
+function AddClusters(num_new, do_plot)
 global CBPdata params CBPInternals;
+
+if nargin < 2
+    do_plot = true;
+end
 
 CL = CBPdata.clustering;
 
@@ -35,12 +39,16 @@ CBPdata.CBP.num_passes = 0;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % now "reassess"
-try
-    ReassessClusters(old_num_waveforms + (1:num_new));
-catch err
-    % if this doesn't go right, put things back the way they were
-    CBPdata.clustering = CLold;
-    rethrow(err);
+if params.general.raw_errors
+    ReassessClusters(old_num_waveforms + (1:num_new), do_plot);
+else
+    try
+        ReassessClusters(old_num_waveforms + (1:num_new), do_plot);
+    catch err
+        % if this doesn't go right, put things back the way they were
+        CBPdata.clustering = CLold;
+        rethrow(err);
+    end
 end
 
 % normally we'd re-match the waveforms and re-plot, but

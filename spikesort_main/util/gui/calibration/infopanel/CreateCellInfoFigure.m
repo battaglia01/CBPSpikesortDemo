@@ -6,6 +6,12 @@ function f = CreateCellInfoFigure
     global CBPdata params CBPInternals;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% some reusable params
+    checkboxsize = 20;
+    checkboxmargin = 50;
+    num_waveforms = params.plotting.max_num_cells;
+        
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Set up figure
 %
     % Set look and feel. Taken from
@@ -19,126 +25,58 @@ function f = CreateCellInfoFigure
     f.NumberTitle = 'off';
     f.Name = 'Cell Info';
     set(f, 'ToolBar', 'none', 'MenuBar', 'none');
+    set(f, 'Resize', 'off');
 
     figwidth = 200;
     figpos = get(gcf,'InnerPosition');
     scrsz =  get(0,'ScreenSize');
     set(f, 'InnerPosition', [scrsz(3)/2-figwidth/2, figpos(2), figwidth, figpos(4)]);
 
-    % initialize figure's appdata tmp_cells_to_plot equal to the current
-    % one
-    setappdata(f, 'tmp_cells_to_plot', CBPInternals.cells_to_plot);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Draw panel and check boxes
-%
-    % some reusable params
-    checkboxsize = 20;
-    checkboxmargin = 50;
-
+% Set up panels and scroll panel
     % get new adjusted figpos again
     figpos = get(gcf,'InnerPosition');
     panelwidth = figpos(3);
-    panelheight = checkboxsize*params.clustering.num_waveforms;
+    panelheight = checkboxsize * num_waveforms ...
+                    + checkboxsize * 2; % pad with some extra spacing
 
-    % adding a safety margin seems to get rid of spurious horizontal
-    % scrollbars. (We get rid it when adding the scrollpane anyway)
-    safetymargin = 50;
-    panelpos = [safetymargin                figpos(4)-panelheight ...
-                panelwidth-2*safetymargin   panelheight];
-    mainpanel = uipanel(f, 'Units', 'pixels', ...
-                           'OuterPosition', panelpos);
-
-    % start out with "num_waveforms" being the number of clustering
-    % waveforms, but as we add waveforms in the waveformrefinement stage
-    % (or ground truth), add more cell plot checkboxes
-	num_waveforms = params.clustering.num_waveforms;
-    if isfield(CBPdata, "waveformrefinement") && ...
-       isfield(CBPdata.waveformrefinement, "num_waveforms")
-        num_waveforms = max(num_waveforms, ...
-                            CBPdata.waveformrefinement.num_waveforms);
+    % set up inner panel. easier to determine the position in pixels, 
+    % since we've specified the figure position in pixels, so we'll do
+    % that.
+    % in the "figpos(4)*.9-panelheight," we multiply by that .9 to leave
+    % 10% for the buttons below
+    innerpanelpos =   [0            figpos(4)*.9-panelheight ...
+                       panelwidth   panelheight];
+    innerpanel = uipanel(f, 'Units', 'pixels', ...
+                            'BorderType', 'none', ...
+                            'OuterPosition', innerpanelpos);
+    
+    % set up outer panel, this time in normalized units, so that there is
+    % 10% left for buttons below
+    outerpanelpos = [0 .10 1 .90];
+    if panelheight > figpos(4) * .9
+        scrolltype = "vert";
+    else
+        scrolltype = "none";
     end
-    if isfield(CBPdata, "groundtruth") && ...
-       isfield(CBPdata.groundtruth, "true_spike_class")
-        num_waveforms = max(num_waveforms, ...
-                            length(unique(CBPdata.groundtruth.true_spike_class)));
-    end
-    for n=1:num_waveforms
-        % check if this is being plotted
-        if ismember(n, CBPInternals.cells_to_plot)
-            plotted = true;
-        else
-            plotted = false;
-        end
-
-        % now add toggle
-        cpos = [checkboxmargin  panelheight-checkboxsize*n ...
-                checkboxsize    checkboxsize];
-        c = ToggleCheckbox(mainpanel, 'Units', 'pixels', ...
-                                      'BackgroundColor', params.plotting.cell_color(n), ...
-                                      'Position', cpos, ...
-                                      'UserData', plotted);
-        setappdata(c, 'togglecallback', @() UpdatePlotCells(n, c));
-
-        % add text label
-        tpos = [checkboxmargin+5+checkboxsize               panelheight-checkboxsize*n ...
-                panelwidth-checkboxsize-5-checkboxmargin    checkboxsize];
-        t = uicontrol(mainpanel,  'Style', 'text', ...
-                                  'String', "Cell #" + n, ...
-                                  'Units', 'pixels', ...
-                                  'Position', tpos, ...
-                                  'HorizontalAlignment', 'left', ...
-                                  'FontUnits', 'Normalized', ...
-                                  'FontSize', 0.8);
-    end
-
-    % draw everything
+    outerscrollpanel = uiscrollpanel(innerpanel, scrolltype, 0, panelheight - figpos(4)*.9, ...
+                                     'Units', 'Normalized', ...
+                                     'Position', outerpanelpos);
+    % Draw everything
     pause(0.01);
     drawnow;
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Scroll panel
-% Taken from https://undocumentedmatlab.com/blog/scrollable-gui-panels
-    % Get the panel's underlying JPanel object reference
-    jPanel = mainpanel.JavaFrame.getGUIDEView.getParent;
-
-    % Embed the JPanel within a new JScrollPanel object
-    jScrollPanel = javaObjectEDT(javax.swing.JScrollPane(jPanel));
-
-    % Remove the JScrollPane border-line
-    jScrollPanel.setBorder([]);
-
-    % Place the JScrollPanel in same GUI location as the original panel
-    hParent = mainpanel.Parent;
-
-    % redo figpos as we've changed it from before when resizing
-    %set(f, 'Units', 'normalized');
-    figpos = get(f,'InnerPosition');
-    figpos(1:2) = 0;
-    [hjScrollPanel, hScrollPanel] = javacomponent(jScrollPanel, figpos, hParent);
-    set(hScrollPanel, 'Units', 'normalized'); %%@ Do we need this?
-
-    % Ensure that the scroll-panel and contained panel have linked visibility
-    hLink = linkprop([mainpanel,hScrollPanel],'Visible');
-    setappdata(mainpanel,'ScrollPanelVisibilityLink',hLink);
-
-    % Draw everything and scroll to top left
-    pause(0.01);
-    drawnow;
-    jScrollPanel.getViewport.setViewPosition(java.awt.Point(0,0));
-
+    
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Buttons
     % Change hScrollPanel units to "Normalized," carve out a 10% space at
     % bottom
-    set(hScrollPanel, 'Units', 'normalized');
-    scrpos = get(hScrollPanel, 'Position');
-    scrpos(2) = scrpos(2) + .1;
-    scrpos(4) = .9;
-    set(hScrollPanel, 'Position', scrpos);
+    
+    % initialize figure's appdata tmp_cells_to_plot equal to the current
+    % one
+    setappdata(f, 'tmp_cells_to_plot', CBPInternals.cells_to_plot);
 
-    % Add "Save" and "Cancel" buttons
+        % Add "Save" and "Cancel" buttons
     savebutn = uicontrol(f, 'Tag', 'cellinfopanel_save', ...
                             'Style', 'pushbutton', ...
                             'FontSize', 14, ...
@@ -153,15 +91,65 @@ function f = CreateCellInfoFigure
                             'Units', 'normalized', ...
                             'Position', [0.5 0 0.5 0.1], ...
                             'Callback', @(varargin) CancelInfo(f));
+    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Draw check boxes
+%
+    % start out with "num_waveforms" being the number of clustering
+    % waveforms, but as we add waveforms in the waveform_refinement stage
+    % (or ground truth), add more cell plot checkboxes
+    %%@ Actually we're now using the params.plotting.max_cells parameter.
+    %%@ But this is left for reference
+% 	num_waveforms = params.clustering.num_waveforms;
+%     if isfield(CBPdata, "waveform_refinement") && ...
+%        isfield(CBPdata.waveform_refinement, "num_waveforms")
+%         num_waveforms = max(num_waveforms, ...
+%                             CBPdata.waveform_refinement.num_waveforms);
+%     end
+%     if isfield(CBPdata, "ground_truth") && ...
+%        isfield(CBPdata.ground_truth, "true_spike_class")
+%         num_waveforms = max(num_waveforms, ...
+%                             length(unique(CBPdata.ground_truth.true_spike_class)));
+%     end
+    for n=1:num_waveforms
+        % check if this is being plotted
+        if ismember(n, CBPInternals.cells_to_plot)
+            plotted = true;
+        else
+            plotted = false;
+        end
 
-    % Draw everything
+        % now add toggle
+        % in panelheight-checkboxsize*(n+1), the (n+1) gives us extra space
+        cpos = [checkboxmargin  panelheight-checkboxsize*(n+1) ...
+                checkboxsize    checkboxsize];
+        c = ToggleCheckbox(innerpanel, 'Units', 'pixels', ...
+                                      'BackgroundColor', params.plotting.cell_color(n), ...
+                                      'Position', cpos, ...
+                                      'UserData', plotted);
+        setappdata(c, 'togglecallback', @() UpdatePlotCells(n, c));
+
+        % add text label
+        tpos = [checkboxmargin+5+checkboxsize               panelheight-checkboxsize*(n+1) ...
+                panelwidth-checkboxsize-5-checkboxmargin    checkboxsize];
+        t = uicontrol(innerpanel, 'Style', 'text', ...
+                                  'String', "Cell #" + n, ...
+                                  'Units', 'pixels', ...
+                                  'Position', tpos, ...
+                                  'HorizontalAlignment', 'left', ...
+                                  'FontUnits', 'Normalized', ...
+                                  'FontSize', 0.8);
+    end
+
+    % draw everything
     pause(0.01);
     drawnow;
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Cleanup
     % reset the look and feel
-    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.original_LnF);
 %%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end
 
@@ -186,14 +174,23 @@ function SaveInfo(f)
 
     % lastly, if currently selected tab is from a stage that also replots
     % on cell change, replot right away
-    if CBPInternals.currselectedtabstage.replotoncellchange
-        CBPStagePlot(CBPInternals.currselectedtabstage);
+    if CBPInternals.curr_selected_tab_stage.replotoncellchange
+        CBPStagePlot(CBPInternals.curr_selected_tab_stage);
     end
-    close(f);
+    
+    %  first check if the figure exists before trying to close - useful in
+    %  the event the button is double clicked
+    if ishghandle(f)
+        close(f);
+    end
 end
 
 function CancelInfo(f)
-    close(f);
+    %  first check if the figure exists before trying to close - useful in
+    %  the event the button is double clicked
+    if ishghandle(f)
+        close(f);
+    end
 end
 
 function UpdatePlotCells(cellnum, cellobj)

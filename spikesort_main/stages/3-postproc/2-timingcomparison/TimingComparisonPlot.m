@@ -5,61 +5,46 @@ function TimingComparisonPlot(command)
         DeleteCalibrationTab('Timing Comparison');
         return;
     end
-    
+
 % -------------------------------------------------------------------------
 % Set up basics
     %%@ ORG - could modularize some repeated code shared between this and
     %%@ SpikeTimingPlot
     % set up local vars to reuse
     whitening = CBPdata.whitening;
-    true_times = {};
-    spike_time_array_cl = CBPdata.clustering.spike_time_array_cl;
-    spike_time_array_cbp = CBPdata.waveformrefinement.spike_time_array_thresholded;
-    spike_amps = CBPdata.waveformrefinement.spike_amps_thresholded;
-    spike_traces = CBPdata.waveformrefinement.spike_traces_thresholded;
-    nchan = size(whitening.data,1);
+    spike_time_array_cl = CBPdata.ground_truth.clustering.spike_time_array_cl;
+    spike_time_array_cbp = CBPdata.waveform_refinement.spike_time_array_thresholded;
 
-    
-    
-    % get permutations - this is the associated cluster/CBP waveform for
-    % each ground truth waveform
-    best_ordering_cl = CBPdata.groundtruth.best_ordering_cl;
-    best_ordering_cbp = CBPdata.groundtruth.best_ordering_cbp;
-    
-    % we don't want it to plot only ground truth, we also want it to plot
-    % CBP and cluster waveforms that have no corresponding ground truth
-	% so, neat and simple hackish-way to get it to plot everything, even 
-    % if there isn't ground truth there.
-    %
-    % we pad the permutations with "Inf" if they are different sizes,
-    % which, in a sense, matches up any unmatched clusters with CBP "#Inf",
-    % and vice versa.
-    %
-    % This magically causes things to process correctly in the loops below,
-    % which, upon running into a "#Inf" waveform, will simply see it is
-    % outside the standard clustering/CBP waveform bounds and ignore it
-    % (because this logic was built in to handle "unassigned" waveforms
-    % which have fake cluster/CBP ID #'s, so this fits into that).
-    if length(best_ordering_cl) < length(best_ordering_cbp)
-        lendiff = length(best_ordering_cbp) - length(best_ordering_cl);
-        best_ordering_cl(end+1:end+lendiff) = Inf;
-    elseif length(best_ordering_cl) > length(best_ordering_cbp)
-        lendiff = length(best_ordering_cl) - length(best_ordering_cbp);
-        best_ordering_cbp(end+1:end+lendiff) = Inf;
-    end
-    
-    % get the cells to plot. This is whatever cells are listed as being
+    % Get assignment triples that we made in TimingComparisonMain - we will
+    % use these to automatically match up the right waveform when plotting
+    % things below!
+    % Get assignment triples that we made in TimingComparisonMain - we will
+    % use these to automatically match up the right waveform when plotting
+    % things below!
+    assignments = CBPdata.ground_truth.assignments;
+
+    % Get the cells to plot. This is whatever cells are listed as being
     % plottable in plot_cells, intersected with the total number of cells.
-    num_true_cells = length(unique(CBPdata.groundtruth.true_spike_class));
+    if isfield(CBPdata.ground_truth, 'true_spike_class')
+        num_true_cells = length(unique(CBPdata.ground_truth.true_spike_class));
+    else
+        num_true_cells = 0;
+    end
     num_cl_cells = params.clustering.num_waveforms;
-    num_cbp_cells = CBPdata.waveformrefinement.num_waveforms;
-    num_cells = max([num_true_cells, num_cl_cells, num_cbp_cells]);
-    plot_cells = intersect(CBPInternals.cells_to_plot, 1:num_cells);
+    num_cbp_cells = CBPdata.waveform_refinement.num_waveforms;
+    %%@ NOTE - this was originally the max of the different cells, but now
+    %%@ that we're doing it with our "assignments" based method, it should
+    %%@ be the length of that instead. Original left for reference
+    max_num_cells = length(assignments);
+    %%@ max([num_true_cells, num_cl_cells, num_cbp_cells]);
+    plot_cells = intersect(CBPInternals.cells_to_plot, 1:max_num_cells);
     num_plot_cells = length(plot_cells);
     CheckPlotCells(num_plot_cells);
 
-    if isfield(CBPdata.groundtruth, 'spike_time_array_processed')
-        true_times = CBPdata.groundtruth.spike_time_array_processed;
+    if isfield(CBPdata.ground_truth, 'spike_time_array_processed')
+        true_times = CBPdata.ground_truth.spike_time_array_processed;
+    else
+        true_times = {};
     end
 
 % -------------------------------------------------------------------------
@@ -69,7 +54,7 @@ function TimingComparisonPlot(command)
     % create axes (if not created already)
     gca;
 
-    % Add whitening traces to plot
+    % Add whitened data to plot
     plots = {};
     for n=1:size(whitening.data,1)
         plots{end+1} = [];
@@ -79,96 +64,150 @@ function TimingComparisonPlot(command)
         plots{end}.chan = n+1;
     end
 
-    % Add spike traces to plot
-    for n=1:num_plot_cells
-        c = plot_cells(n);
-        cbp_c = best_ordering_cbp(c);
-        
-        if cbp_c > length(spike_traces)
-            continue;
+    % Add reconstructed spike waveform traces to plot.
+    % To do this, we first generate all the relevant "Spike Traces" (if
+    % they exist):
+    %%@ Note, spike_traces_cbp was created previously so we can use that...
+    %%@ maybe we should just create all these previously, or else create
+    %%@ them all here?
+    spike_traces_cl = CBPdata.timing_comparison.spike_traces_cl;
+    spike_traces_cbp = CBPdata.timing_comparison.spike_traces_cbp;
+    spike_traces_true = CBPdata.timing_comparison.spike_traces_true;
+
+    % To do this, we iterate through our list of assignments, and plot the
+    % corresponding traces. If any assignment is "0" we skip it, or if it's
+    % a vector of multiple values, we add the traces together. No CBP or
+    % clustering waveform should ever appear twice, due to the way we coded
+    % TimingComparisonMain.
+    for n=1:length(assignments)
+        cur_assignment = assignments{n};
+
+        % Build ground truth trace, if it exists
+        cur_true = cur_assignment.true;
+        if cur_true > 0 && cur_true <= num_true_cells
+            for m=1:size(spike_traces_true{cur_true},2)
+                plots{end+1} = [];
+                plots{end}.dt = whitening.dt;
+                plots{end}.y = spike_traces_true{cur_true}(:,m);
+                plots{end}.args = {'-', 'Color', params.plotting.cell_color(n), ...
+                                   'LineWidth', 1, 'HandleVisibility', 'off'};
+                plots{end}.chan = m+1;
+            end
         end
-        
-        %%@ WHAT IF NO TRUTH NUMBER? e.g. one waveform is unassigned and it
-        %%@ gives it a bogus ID # to represent "unassigned"
-        for m=1:size(spike_traces{cbp_c},2)
-            plots{end+1} = [];
-            plots{end}.dt = whitening.dt;
-            plots{end}.y = spike_traces{cbp_c}(:,m);
-            plots{end}.args = {':', 'Color', params.plotting.cell_color(cbp_c), ...
-                               'LineWidth', 1, 'HandleVisibility', 'off'};
-            plots{end}.chan = m+1;
+
+        % Build CBP trace, if it exists
+        cur_cbp_all = cur_assignment.cbp;
+        for o=1:length(cur_cbp_all)
+            cur_cbp = cur_cbp_all(o);
+            if cur_cbp > 0 && cur_cbp <= num_cbp_cells
+                for m=1:size(spike_traces_cbp{cur_cbp},2)
+                    plots{end+1} = [];
+                    plots{end}.dt = whitening.dt;
+                    plots{end}.y = spike_traces_cbp{cur_cbp}(:,m);
+                    plots{end}.args = {'-.', 'Color', params.plotting.cell_color(n), ...
+                                       'LineWidth', 1, 'HandleVisibility', 'off'};
+                    plots{end}.chan = m+1;
+                end
+            end
+        end
+
+        % Build clustering trace, if it exists
+        cur_cl_all = cur_assignment.cl;
+        for o=1:length(cur_cl_all)
+            cur_cl = cur_cl_all(o);
+            if cur_cl > 0 && cur_cl <= num_cl_cells
+                for m=1:size(spike_traces_cl{cur_cl},2)
+                    plots{end+1} = [];
+                    plots{end}.dt = whitening.dt;
+                    plots{end}.y = spike_traces_cl{cur_cl}(:,m);
+                    plots{end}.args = {':', 'Color', params.plotting.cell_color(n), ...
+                                       'LineWidth', 1, 'HandleVisibility', 'off'};
+                    plots{end}.chan = m+1;
+                end
+            end
         end
     end
 
     % Add zero-crossing to plot
-    %%@! OPT - this doesn't need to be so many samples!! Could just be
     for n=1:size(whitening.data,1)
         plots{end+1} = [];
+    %%@! OPT - just add two samples at (0,0) and (nsamples,0) and let
+    %%@ MATLAB fill in the rest
         plots{end}.dt = whitening.dt;
         plots{end}.y = zeros(1,size(whitening.data,2));
         plots{end}.args = {'Color', [0 0 0], 'HandleVisibility', 'off'};
         plots{end}.chan = n+1;
     end
 
-    % Add indicators to plot
-    for n=1:num_plot_cells
-        c = plot_cells(n);
+    % Add indicators to plot.
+    % To do this, we iterate through our list of assignments, and plot the
+    % corresponding traces. If any assignment is "0" we skip it, or if it's
+    % a vector of multiple values, we add the traces together. No CBP or
+    % clustering waveform should ever appear twice, due to the way we coded
+    % TimingComparisonMain.
+    for n=1:length(assignments)
         vertalign = 1-(n-1)/(num_plot_cells-1);
-        
-        % CBP indicators
-        cbp_c = best_ordering_cbp(c);
-        if cbp_c <= length(spike_time_array_cbp)
-            plots{end+1} = [];
-            plots{end}.type = 'rawplot';
-            plots{end}.x = (spike_time_array_cbp{cbp_c}-1)*whitening.dt;
-            plots{end}.y = vertalign*ones(1,length(spike_time_array_cbp{cbp_c}));
-            plots{end}.args = {'.', 'Color', params.plotting.cell_color(c), ...
-                               'MarkerSize', 20, ...
-                               'LineWidth', 2, ...
-                               'HandleVisibility', 'off'};
-                               % , 'DisplayName', ...
-                               %['CBP - Spike #' num2str(c)]};
-            plots{end}.chan = 'header';
-        end
+        cur_assignment = assignments{n};
 
-        % Clustering indicators
-        cl_c = best_ordering_cl(c);
-        if cl_c <= length(spike_time_array_cl)
+        % Plot ground truth indicators, if they exist
+        cur_true = cur_assignment.true;
+        % check if index is valid
+        if cur_true > 0 && cur_true <= num_true_cells
             plots{end+1} = [];
             plots{end}.type = 'rawplot';
-            plots{end}.x = (spike_time_array_cl{cl_c}-1)*whitening.dt;
-            plots{end}.y = vertalign*ones(1,length(spike_time_array_cl{cl_c}));
-            plots{end}.args = {'x', 'Color', params.plotting.cell_color(c), ...
-                               'MarkerSize', 15, ...
+            plots{end}.x = (true_times{cur_true}-1)*whitening.dt;
+            plots{end}.y = vertalign*ones(1,length(true_times{cur_true}));
+            plots{end}.args = {'x', 'Color', params.plotting.cell_color(n), ...
+                               'MarkerSize', 10, ...
                                'LineWidth', 2, ...
                                'HandleVisibility', 'off'};
                                %, 'DisplayName', ...
-                               %['Clustering - Spike #' num2str(c)]};
+                               %['Truth - Spike #' num2str(c)]};
             plots{end}.chan = 'header';
         end
 
-        % Ground truth indicators
-        tr_c = c;
-        if tr_c <= length(true_times)
-            plots{end+1} = [];
-            plots{end}.type = 'rawplot';
-            plots{end}.chan = 'header';
-            if tr_c <= length(true_times) && ~isempty(true_times{tr_c})
-                plots{end}.x = (true_times{tr_c}-1)*whitening.dt;
-                plots{end}.y = vertalign*ones(1,length(true_times{tr_c}));
-                plots{end}.args = {'o', 'Color', params.plotting.cell_color(c), ...
-                                   'MarkerSize', 10, ...
+        % Plot CBP indicators, if they exist
+        cur_cbp_all = cur_assignment.cbp;
+        % if so, iterate on all cbp indices
+        for o=1:length(cur_cbp_all)
+            cur_cbp = cur_cbp_all(o);
+            % check if index is valid
+            if cur_cbp > 0 && cur_cbp <= num_cbp_cells
+                plots{end+1} = [];
+                plots{end}.type = 'rawplot';
+                plots{end}.x = (spike_time_array_cbp{cur_cbp}-1)*whitening.dt;
+                plots{end}.y = vertalign*ones(1,length(spike_time_array_cbp{cur_cbp}));
+                plots{end}.args = {'.', 'Color', params.plotting.cell_color(n), ...
+                                   'MarkerSize', 20, ...
+                                   'LineWidth', 2, ...
+                                   'HandleVisibility', 'off'};
+                                   % , 'DisplayName', ...
+                                   %['CBP - Spike #' num2str(c)]};
+                plots{end}.chan = 'header';
+            end
+        end
+
+        % Build clustering trace, if it exists
+        cur_cl_all = cur_assignment.cl;
+        % if so, iterate on all cbp indices
+        for o=1:length(cur_cl_all)
+            cur_cl = cur_cl_all(o);
+            if cur_cl > 0 && cur_cl <= num_cl_cells
+                plots{end+1} = [];
+                plots{end}.type = 'rawplot';
+                plots{end}.x = (spike_time_array_cl{cur_cl}-1)*whitening.dt;
+                plots{end}.y = vertalign*ones(1,length(spike_time_array_cl{cur_cl}));
+                plots{end}.args = {'o', 'Color', params.plotting.cell_color(n), ...
+                                   'MarkerSize', 15, ...
                                    'LineWidth', 2, ...
                                    'HandleVisibility', 'off'};
                                    %, 'DisplayName', ...
-                                   %['Truth - Spike #' num2str(c)]};
-            else
-                plots{end}.x = [NaN];
-                plots{end}.y = [NaN];
-                plots{end}.args = {'o', 'HandleVisibility', 'off'};
+                                   %['Clustering - Spike #' num2str(c)]};
+                plots{end}.chan = 'header';
             end
         end
     end
+
 
     % Three dummy plots for CBP, clustering, ground truth
     plots{end+1} = [];
@@ -186,17 +225,18 @@ function TimingComparisonPlot(command)
     plots{end}.chan = 'header';
     plots{end}.x = NaN;
     plots{end}.y = NaN;
-    plots{end}.args = {'x', 'Color', 'k', ...
+    plots{end}.args = {'o', 'Color', 'k', ...
                        'MarkerSize', 15, ...
                        'LineWidth', 2, ...
                        'DisplayName', 'Clustering Spike'};
 
+    %%@ CHECK IF THIS EXISTS?
     plots{end+1} = [];
     plots{end}.type = 'rawplot';
     plots{end}.chan = 'header';
     plots{end}.x = NaN;
     plots{end}.y = NaN;
-    plots{end}.args = {'o', 'Color', 'k', ...
+    plots{end}.args = {'x', 'Color', 'k', ...
                        'MarkerSize', 15, ...
                        'LineWidth', 2, ...
                        'DisplayName', 'Ground Truth Spike'};

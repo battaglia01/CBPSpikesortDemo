@@ -3,8 +3,9 @@
 % X : time x snippet-index matrix of data
 % XProj : snippet x PC-component matrix of projections
 % assignments : vector of class assignments
+% true_num_cells : number of waveform types being plotted
 
-function PlotPCA(X, XProj, assignments)
+function PlotPCA(X, XProj, assignments, true_num_cells)
     global CBPdata params CBPInternals;
 
 % -------------------------------------------------------------------------
@@ -18,7 +19,6 @@ function PlotPCA(X, XProj, assignments)
 
     % get the cells to plot. This is whatever cells are listed as being
     % plottable in plot_cells, intersected with the total number of cells.
-    true_num_cells = params.clustering.num_waveforms;
     plot_cells = intersect(CBPInternals.cells_to_plot, 1:true_num_cells);
     num_cells = length(plot_cells);
     CheckPlotCells(num_cells);

@@ -7,6 +7,6 @@ function out = UnserializeRawDataFromFile(filename, bittype, numchannels)
     f = fopen(filename, 'r');
     datatype = bittype + "=>double";
     out = fread(f, datatype);
-    %%@ NOTE: below we use the convention, for now, that each rawdata channel is a row
+    %%@ NOTE: below we use the convention, for now, that each raw_data channel is a row
     out = reshape(out, numchannels, []);
 end

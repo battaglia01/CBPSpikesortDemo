@@ -68,43 +68,41 @@ function AmplitudeThresholdPlot(command)
 
     %add panel to tab
     parent = get(gca,'Parent');
-    p = uipanel(parent,...
+    inner_panel = uipanel(parent,...
                 'Units','normalized', ...
                 'Position',[p_left p_bottom p_width p_height], ...
                 'Tag', 'amp_panel');
-    RegisterTag(p);
+    RegisterTag(inner_panel);
+    
+%     loading = uicontrol(t, 'Style', 'Text', ...
+%                  'FontUnits', 'normalized', ...
+%                  'FontSize', 0.2, ...
+%                  'Units', 'normalized', ...
+%                  'Position', [0.333 0.8 0.333 0.2], ...
+%                  'String', 'Loading...');
+	drawnow;
+    pause(0.001);
 
     %create scrollbars
-    %%@ not needed - left for reference
-%     if num_cells > max_n
-%         uicontrol('Units','normalized',...
-%                   'Style','Slider',...
-%                   'Position',[.98,.03,.02,.97],...
-%                   'Min',0,...
-%                   'Max',1,...
-%                   'Value',1,...
-%                   'SliderStep',[0.125 0.25],...
-%                   'visible','on',...
-%                   'Tag','scrollvert',...
-%                   'Parent',parent,...
-%                   'Callback',@(scr,event) scrollvert);
-%         uicontrol('Units','normalized',...
-%                   'Style','Slider',...
-%                   'Position',[0,0,.98,.03],...
-%                   'Min',0,...
-%                   'Max',1,...
-%                   'Value',0,...
-%                   'SliderStep',[0.125 0.25],...
-%                   'Tag','scrollhoriz',...
-%                   'Parent',parent,...
-%                   'Callback',@(scr,event) scrollhoriz);
-%     end
+%     scrollleft = 1/7;
+%     scrollright = 1 - scrollleft/2;
+%     scrollbottom = (1-p_height-p_left/2)/(1-p_height);
+%     scrolltop = 1 - scrollbottom;
+    if num_cells <= max_n
+        scroll_type = "none";
+    else
+        scroll_type = "both";
+    end
+    horiz_offset = (p_width - 1) + p_left*1.75;% + 2*p_left;
+    vert_offset = (p_height - 1) + 1.75*p_left/2;
+    scroll_panel = uiscrollpanel(inner_panel, scroll_type, horiz_offset, vert_offset);
+                 
 
 % -------------------------------------------------------------------------
 % Do all subplotting
     for n=1:num_cells
         c = plot_cells(n);
-        subplot(num_cells+1, num_cells, n, 'Parent', p);
+        subplot(num_cells+1, num_cells, n, 'Parent', inner_panel);
         cla;
 
         % Plot spike amplitude histogram
@@ -165,43 +163,18 @@ function AmplitudeThresholdPlot(command)
             PlotXCorr(threshspiketimes, num_cells, n, m);
         end
     end
+%     delete(loading);
     pause(0.01);
     drawnow;
-
+            
     % Report on performance relative to ground truth if available
     ShowGroundTruthEval(threshspiketimes, f);
 
     ax = subplot(num_cells+1, num_cells, ...
-                 sub2ind([num_cells num_cells+1], 1, num_cells+1), 'Parent', p);
+                 sub2ind([num_cells num_cells+1], 1, num_cells+1), 'Parent', inner_panel);
 
     set(ax, 'Visible', 'off');
     pos = get(ax, 'Position');
     ht = pos(4);
     wsz = get(f, 'Position'); wsz = wsz([3:4]);
-
-    % now, after all that, add scrollbars
-    pause(0.01);
-    drawnow;
-    % Get the panel's underlying JPanel object reference
-    jPanel = p.JavaFrame.getGUIDEView.getParent;
-
-    % Embed the JPanel within a new JScrollPanel object
-    jScrollPanel = javaObjectEDT(javax.swing.JScrollPane(jPanel));
-
-    % Remove the JScrollPane border-line
-    jScrollPanel.setBorder([]);
-
-    % Place the JScrollPanel in same GUI location as the original panel
-    pixelpos = getpixelposition(p);
-    hParent = p.Parent;
-
-    %parentpos = get(t,'InnerPosition');
-    parentpos = getpixelposition(hParent);
-    parentpos(1:2) = 0;
-    [hjScrollPanel, hScrollPanel] = javacomponent(jScrollPanel, parentpos, hParent);
-    hScrollPanel.Units = 'norm';
-
-    % Ensure that the scroll-panel and contained panel have linked visibility
-    hLink = linkprop([p,hScrollPanel],'Visible');
-    setappdata(p,'ScrollPanelVisibilityLink',hLink);
 end

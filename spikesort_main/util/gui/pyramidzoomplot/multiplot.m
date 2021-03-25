@@ -9,7 +9,7 @@
 %
 % See also `multiplotsubfunc` and `multiplotsubignore` for functions that
 % call to each subplot.
-% 
+%
 % The arguments are either a panel and a cell array of plots, or just a
 % cell array of plots (in which situation multiplot will make a container
 % panel). The plots cell array has as elements a set of objects, each with
@@ -161,7 +161,7 @@ function panel = multiplot(varargin)
                 tmp_args = {};
             end
             hold(ax(ind), 'all');
-            currplots{n} = plot(ax(ind), plots{n}.x, plots{n}.y, tmp_args{:});
+            currplots{n} = plot(ax(ind), plots{n}.x, plots{n}.y, tmp_args{:}, 'LineWidth', 1);
             hold(ax(ind), 'off');
         end
     end

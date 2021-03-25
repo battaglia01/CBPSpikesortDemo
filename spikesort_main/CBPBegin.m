@@ -6,9 +6,9 @@
 % Usage: CBPBegin
 
 function CBPBegin
-
 % set up globals (even in base workspace) and path
 global CBPdata params CBPInternals;
+
 evalin('base','global CBPdata params');
 [curpath, ~, ~] = fileparts(mfilename('fullpath') + ".m");
 addpath(genpath(curpath));
@@ -21,7 +21,8 @@ answer = questdlg("Welcome to CBP. " + ...
                   "data and begin?", ...
                   "New Session?", "Yes", "No", "No");
 if answer == "Yes"
-    CBPReset;
+    CBPInternals.skip_close_confirmation = true;
+    CBPReset;   % this deletes CBPInternals, so don't need to reset
 else
     return;
 end
@@ -35,4 +36,11 @@ if ~result % returns true if user didn't cancel
     return;
 end
 clear result;
-CBPNext;
+
+% lastly, replot up to the last computed stage and exist, or call RawData
+% if it doesn't exist
+if ~isempty(CBPdata.last_stage_name)
+    ReplotTabsUpToStage(CBPdata.last_stage_name)
+else
+    CBPNext;    % basically just calls RawData
+end

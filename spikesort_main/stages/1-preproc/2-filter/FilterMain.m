@@ -17,8 +17,8 @@
 function FilterMain
 global CBPdata params CBPInternals;
 
-% As starting point, copy all data from "rawdata" stage to "filtering"
-CBPdata.filtering = CBPdata.rawdata;
+% As starting point, copy all data from "raw_data" stage to "filtering"
+CBPdata.filtering = CBPdata.raw_data;
 
 % Now do filtering. Are filter frequencies specified?
 if ~isempty(params.filtering.freq)
@@ -40,12 +40,12 @@ if ~isempty(params.filtering.freq)
     %%@ left-aligned to waveform start, rather than peak-aligned.
     ir = filter(CBPdata.filtering.coeffs{1}, CBPdata.filtering.coeffs{2}, ...
                 [1 zeros(1,100000)]);
-    CBPdata.filtering.sampledelay = min(find(ir == max(ir)));
+    CBPdata.filtering.sample_delay = min(find(ir == max(ir)));
 
 else
     fprintf('No filtering performed (params.filtering.freq was empty).\n');
     CBPdata.filtering.coeffs = {[1] [1]};
-    CBPdata.filtering.sampledelay = 0;
+    CBPdata.filtering.sample_delay = 0;
 end
 
 % Remove CHANNEL-WISE means
@@ -53,22 +53,22 @@ CBPdata.filtering.data = CBPdata.filtering.data ...
                          - repmat(mean(CBPdata.filtering.data, 2), 1, ...
                                   size(CBPdata.filtering.data, 2));
 
-%%@ MIKE'S NOTE - so the way this code was originally done, it normalizes
-%%@ the filtering data so that the *max* L2-across-channels at all time
-%%@ samples is equal to 1.
-%%@
-%%@ This can lead to strange results, though - if 
-%%@ a 2-hr recording has ONE really huge spike, the entire thing will be
-%%@ normalized relative to that! This makes for difficulty in setting
-%%@ predictable "default" threshold levels for different data sets.
-%%@
-%%@ A better (or at least, "good-enough" way to do this would be to instead
-%%@ normalize by the median absolute deviation of the flattened signal,
-%%@ taken as a single vector. We can multiply the MAD by 1.4826 to get a
-%%@ robust estimator for the noise std minus spikes. Then, we can we can
-%%@ throw out all samples that are > a few estimated std's, and normalize
-%%@ by the result.
-%%@
+% The way this code was originally done, it normalizes
+% the filtering data so that the *max* L2-across-channels at all time
+% samples is equal to 1.
+%
+% This can lead to strange results, though - if 
+% a 2-hr recording has ONE really huge spike, the entire thing will be
+% normalized relative to that! This makes for difficulty in setting
+% predictable "default" threshold levels for different data sets.
+%
+% A better (or at least, "good-enough") way to do this would be to instead
+% normalize by the median absolute deviation of the flattened signal,
+% taken as a single vector. We can multiply the MAD by 1.4826 to get a
+% robust estimator for the noise std minus spikes. Then, we can we can
+% throw out all samples that are > a few estimated std's, and normalize
+% by the result.
+%
 %%@ Original code for reference:
 % % Scale GLOBALLY across all channels
 % data_L2_across_channels = sqrt(sum(CBPdata.filtering.data.^2, 1)); %%@ RMS vs L2?
@@ -83,5 +83,6 @@ data_prelim_sig = mad_scl * mad(data_flat, 1);
 data_no_outliers = data_flat(abs(data_flat) < 2*data_prelim_sig);
 %%@ ^^ this is hard-coded to 2 sigs. could add param to make this variable
 
-data_trimsig = mad_scl * mad(data_no_outliers);
+data_trimsig = mad_scl * mad(data_no_outliers, 1);
+CBPdata.filtering.trimmed_mad = data_trimsig;
 CBPdata.filtering.data = CBPdata.filtering.data ./ data_trimsig;

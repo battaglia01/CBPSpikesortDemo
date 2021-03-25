@@ -13,7 +13,7 @@ function ExportPhyFile(filename)
               "and try again!");
     end
     % first, check that we've gotten at least to the waveform refinement stage
-    if ~isfield(CBPdata, 'waveformrefinement')
+    if ~isfield(CBPdata, 'waveform_refinement')
         error("You need to get to at least the 'Waveform Refinement' " + ...
               "stage before exporting to Phy format. Please continue " + ...
               "through the CBP stages, or export to a different format.");
@@ -30,9 +30,9 @@ function ExportPhyFile(filename)
     [dir, name, ext] = fileparts(filename);
     filedir = dir + "/" + name;
     nchan = CBPdata.whitening.nchan;
-    spike_time_array_thresholded = CBPdata.waveformrefinement.spike_time_array_thresholded;
-    spike_amps_thresholded = CBPdata.waveformrefinement.spike_amps_thresholded;
-    final_waveforms = CBPdata.waveformrefinement.final_waveforms;
+    spike_time_array_thresholded = CBPdata.waveform_refinement.spike_time_array_thresholded;
+    spike_amps_thresholded = CBPdata.waveform_refinement.spike_amps_thresholded;
+    final_waveforms = CBPdata.waveform_refinement.final_waveforms;
 
     % create an entire folder with the entered filename. So if they entered
     % mydata.npy, make "mydata" the foldername, with subfiles
@@ -40,7 +40,7 @@ function ExportPhyFile(filename)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % WRITE SAMPLE DATA, PARAMS, CHANNEL MAP
-    % WRITE WHITENED DATA TO rawdata.dat. For now, just do int16 (can
+    % WRITE WHITENED DATA TO raw_data.dat. For now, just do int16 (can
     % change this if need be.
     %
     % Since we're doing int16, and whitened data is floating point, we need
@@ -66,10 +66,10 @@ function ExportPhyFile(filename)
     %                 filtered
     f = fopen(filedir + "/params.py", "w");
     fwrite(f, sprintf("dat_path = 'filtered_whitened.dat'\n"));
-    fwrite(f, sprintf("n_channels_dat = " + CBPdata.rawdata.nchan + "\n"));
+    fwrite(f, sprintf("n_channels_dat = " + CBPdata.raw_data.nchan + "\n"));
     fwrite(f, sprintf("dtype = 'int16' \n"));
     fwrite(f, sprintf("offset = 0\n"));
-    fwrite(f, sprintf("sample_rate = " + round(1/CBPdata.rawdata.dt) + ".\n"));
+    fwrite(f, sprintf("sample_rate = " + round(1/CBPdata.raw_data.dt) + ".\n"));
     fwrite(f, sprintf("hp_filtered = True\n"));
     fclose(f);
 

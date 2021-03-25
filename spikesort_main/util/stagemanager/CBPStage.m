@@ -5,18 +5,26 @@
 % we're in calibration mode, and then closes with the stage instructions.
 
 function CBPStage(name)
-    global params CBPInternals;
+    global CBPdata params CBPInternals;
 
 % -------------------------------------------------------------------------
 % Update internal stage
     stageobj = GetStageFromName(name);
 
-    oldrecentstage = CBPInternals.mostrecentstage;
-    oldselectedtabstage = CBPInternals.currselectedtabstage;
+    oldrecentstage = CBPInternals.most_recent_stage;
+    oldselectedtabstage = CBPInternals.curr_selected_tab_stage;
 
-    CBPInternals.mostrecentstage = stageobj;
-    CBPInternals.currselectedtabstage = oldselectedtabstage;
-
+    CBPInternals.most_recent_stage = stageobj;
+    CBPInternals.curr_selected_tab_stage = oldselectedtabstage;
+    CBPdata.last_stage_name = stageobj.name;
+    
+    % always make sure most_recent_stage is at the top
+    CBPdata_fieldnames = fieldnames(CBPdata);
+    indC = strfind(CBPdata_fieldnames,'last_stage_name');
+    ind = find(not(cellfun('isempty',indC)));
+    newperm = [ind setdiff(1:length(CBPdata_fieldnames), ind)];
+    CBPdata = orderfields(CBPdata, newperm);
+    
 % -------------------------------------------------------------------------
 % Clear tabs, redraw, update axes
     if isfield(params, 'plotting') && ...
@@ -49,9 +57,17 @@ function CBPStage(name)
                 ClearStaleTabs(name);
 
                 % set the last stage
-                if ~isempty(oldrecentstage) % means we didn't just crash in rawdata
-                    CBPInternals.mostrecentstage = oldrecentstage;
-                    CBPInternals.currselectedtabstage = oldselectedtabstage;
+                if ~isempty(oldrecentstage) % means we didn't just crash in raw_data
+                    % get the last tab remaining, which is the stage we should
+                    % go to. (Not necessarily the last stage - if we are
+                    % redoing an earlier stage than the last one computed, then
+                    % if it crashes, we don't want to try to return to the (now
+                    % obsolete) future stage
+                    tg = findall(groot, "Tag", "calibration_tg");
+                    last_stage =  getappdata(get(tg, "SelectedTab"), 'stageobj');
+                    CBPInternals.most_recent_stage = last_stage;
+                    CBPInternals.curr_selected_tab_stage = last_stage;
+                    CBPdata.last_stage_name = last_stage.name;
                     SetCalibrationLoading(false);
                 end
 
@@ -77,7 +93,7 @@ function CBPStage(name)
     if params.plotting.calibration_mode
         SetCalibrationLoading(false);
     end
-    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.original_LnF);
 %%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end
 

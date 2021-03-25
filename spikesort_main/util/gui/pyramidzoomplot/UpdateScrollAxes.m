@@ -1,22 +1,22 @@
 function UpdateScrollAxes
 global CBPdata params CBPInternals;
-    if ~isfield(CBPInternals,'scrollaxes')
-        CBPInternals.scrollaxes=[gobjects(0)];
+    if ~isfield(CBPInternals,'pyramid_scroll_axes')
+        CBPInternals.pyramid_scroll_axes=[gobjects(0)];
     else
         % prune old axes
-        CBPInternals.scrollaxes = CBPInternals.scrollaxes(isvalid(CBPInternals.scrollaxes));
+        CBPInternals.pyramid_scroll_axes = CBPInternals.pyramid_scroll_axes(isvalid(CBPInternals.pyramid_scroll_axes));
 
         % prune invalid axes
         todelete = [];
-        for n=1:length(CBPInternals.scrollaxes)
-            if ~isequal(getappdata(CBPInternals.scrollaxes(n),'PyramidZoomPlot'),'true')
+        for n=1:length(CBPInternals.pyramid_scroll_axes)
+            if ~isequal(getappdata(CBPInternals.pyramid_scroll_axes(n),'PyramidZoomPlot'),'true')
                 todelete(end+1) = n;
             end
         end
-        CBPInternals.scrollaxes(todelete) = [];
+        CBPInternals.pyramid_scroll_axes(todelete) = [];
 
         % check we're not empty
-        if isempty(CBPInternals.scrollaxes)
+        if isempty(CBPInternals.pyramid_scroll_axes)
             return;
         end
 
@@ -24,8 +24,8 @@ global CBPdata params CBPInternals;
 
         % set all x axes to the plot times, set y axis to min and max for
         % each plot
-        for n=1:length(CBPInternals.scrollaxes)
-            rescalefun = getappdata(CBPInternals.scrollaxes(n),'rescale');
+        for n=1:length(CBPInternals.pyramid_scroll_axes)
+            rescalefun = getappdata(CBPInternals.pyramid_scroll_axes(n),'rescale');
             rescalefun(params.plotting.zoomlevel, params.plotting.xpos);
             % drawnow limitrate nocallbacks;
             % pause(.01);

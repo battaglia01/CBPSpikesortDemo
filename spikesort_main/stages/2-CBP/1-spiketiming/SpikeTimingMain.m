@@ -12,8 +12,8 @@ global CBPdata params CBPInternals;
 
 % set up CBPdata.CBP, init_waveforms
 if CBPdata.CBP.num_passes == 0 || ...
-        ~isfield(CBPdata, 'waveformrefinement') || ...
-        ~isfield(CBPdata.waveformrefinement, 'final_waveforms')
+        ~isfield(CBPdata, 'waveform_refinement') || ...
+        ~isfield(CBPdata.waveform_refinement, 'final_waveforms')
     % if CBP num_passes == 0, or if we haven't gotten all the way to
     % waveform refinement, initialize with clustering
     first_pass = true;
@@ -25,8 +25,8 @@ else
     % CBP round
     first_pass = false;
     fprintf('*** Seeding new initial waveforms with previous final waveforms...\n');
-    CBPdata.CBP.init_waveforms = CBPdata.waveformrefinement.final_waveforms;
-    CBPdata.CBP.num_waveforms = CBPdata.waveformrefinement.num_waveforms;
+    CBPdata.CBP.init_waveforms = CBPdata.waveform_refinement.final_waveforms;
+    CBPdata.CBP.num_waveforms = CBPdata.waveform_refinement.num_waveforms;
 end
 
 % Partition the signal into snippets
@@ -50,13 +50,23 @@ CBPdata.CBP.spike_traces_init = ...
                       CBPdata.whitening.nsamples, ...
                       CBPdata.whitening.nchan);
 
+% Develop single vectors of (rounded) sample times and assignments
+[CBPdata.CBP.segment_centers, CBPdata.CBP.assignments] = ...
+    GetSpikeVectorsFromTimeCellArray(CBPdata.CBP.spike_time_array);
+
+% add PCs and so on
+[CBPdata.CBP.X, ~, CBPdata.CBP.assignments, CBPdata.CBP.PCs, ...
+ CBPdata.CBP.XProj, ~, ~] = ...
+    GetAllSpikeInfo(...
+        CBPdata.CBP.segment_centers, CBPdata.CBP.assignments);
+
 % now that we've finished, update num_passes
 if first_pass
     % first pass, so just set it to 1
     CBPdata.CBP.num_passes = 1;
 else
     % not first pass - increment the last waveform refinement pass
-    CBPdata.CBP.num_passes = CBPdata.waveformrefinement.num_passes + 1;
+    CBPdata.CBP.num_passes = CBPdata.waveform_refinement.num_passes + 1;
 end
 
 % get rid of the old, previous amplitude thresholding, clustering comparison,
@@ -67,6 +77,6 @@ end
 if isfield(CBPdata, 'clusteringcomparison')
     CBPdata = rmfield(CBPdata, 'clusteringcomparison');
 end
-if isfield(CBPdata, 'waveformrefinement')
-    CBPdata = rmfield(CBPdata, 'waveformrefinement');
+if isfield(CBPdata, 'waveform_refinement')
+    CBPdata = rmfield(CBPdata, 'waveform_refinement');
 end

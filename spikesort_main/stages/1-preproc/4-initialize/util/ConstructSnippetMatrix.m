@@ -25,6 +25,11 @@ function X = ConstructSnippetMatrix(data, peak_idx, pars)
 
     % Populate the matrix X one column at a time.
     for i = 1 : length(peak_idx)
+        % added check to make sure we don't overflow
+        if peak_idx(i) + wlen > length(data) || ...
+           peak_idx(i) - wlen < 1;
+           continue;
+        end
         % Extract snippet from the data
         x = data(:, peak_idx(i) + (-wlen : wlen));
         if pars.upsample_fac <= 1
@@ -60,6 +65,8 @@ function X = ConstructSnippetMatrix(data, peak_idx, pars)
         x_fine_averaged = smooth(x_fine_averaged, pars.smooth_len);
 
         % Align to max value of the smoothed, upsampled one-channel average.
+        % We can also align to the centroid or median, depending on what
+        % `alignment_mode` is set to.
         if isequal(pars.alignment_mode, 'peak')
             [~, max_idx] = max(x_fine_averaged);
         elseif isequal(pars.alignment_mode, 'centroid')
@@ -74,6 +81,8 @@ function X = ConstructSnippetMatrix(data, peak_idx, pars)
             cdf_tmp = cumsum(tmp);
             
             max_idx = min(find(cdf_tmp >= 0.5));
+        elseif isequal(pars.alignment_mode, 'none')
+            max_idx = round(length(x_fine_averaged)/2);
         end
         
         % clear x_fine_averaged;

@@ -1,7 +1,7 @@
 % This function takes the whitened data, a set of peak indices, and some
 % parameters, and returns the adjusted clusters
 function [X, XProj, PCs, centroids, assignments, init_waveforms, ...
-          spike_time_array_cl] = ...
+          spike_time_array_cl, adj_peak_idx] = ...
             ClusterFromPeaks(whitened_data, peak_idx, waveform_len, ...
                              nchan, cluster_pars)
 
@@ -24,7 +24,7 @@ end
 %origassignments = DoKMeans(X', cluster_pars.num_waveforms);
 waveform_len = size(X, 1)/nchan;
 if cluster_pars.kmean_mode == "temporal"
-    origassignments = DoKMeans(X', cluster_pars.num_waveforms);
+    orig_assignments = DoKMeans(X', cluster_pars.num_waveforms);
 elseif cluster_pars.kmean_mode == "spectral"
     % zero-pad each channel of the flattened snippets, so that we aren't
     % (implicitly) circularly-convolving samples from one channel onto the
@@ -38,7 +38,7 @@ elseif cluster_pars.kmean_mode == "spectral"
     end
     f_XX = fft(XX);
     f_XX = abs(f_XX).^2;
-    origassignments = DoKMeans(f_XX', cluster_pars.num_waveforms);
+    orig_assignments = DoKMeans(f_XX', cluster_pars.num_waveforms);
 elseif cluster_pars.kmean_mode == "gdadjust"
     %%@ NOTE: it should, in principle, be possible to do a kind of
     %%@ time-shifted clustering by getting the unwrapped phase, and
@@ -58,21 +58,22 @@ elseif cluster_pars.kmean_mode == "gdadjust"
         f_tmp_waveform = fft(tmp_waveform, pad*waveform_len);
         f_XX(:, n) = f_tmp_waveform(:);
     end
-    
+
     % now we want to project away the linear component of the phase
     % response. To do this, first get magnitude and angle
     m_XX = abs(f_XX);
-    a_XX = unwrap(angle(f_XX));
-    
+    a_XX = unwrap(angle(f_XX), [], 1);
+
+    % now, it so happens an equivalent thing to what we want to do is to 
     % then build a rejection matrix that zeros the linear term
     linterm = repmat((0:(pad*waveform_len-1))', nchan, 1);
     P_linterm = (linterm*linterm')/(linterm'*linterm);
     R_linterm = eye(size(P_linterm)) - P_linterm;
-    
+
     % do the zeroing, then convert back to f_XX
     a_XX = R_linterm * a_XX;
     f_XX = m_XX .* exp(i*a_XX);
-    
+
     % now, to convert back to XX, we have to again unflatten, take the
     % ifft, and then re-flatten
     XX = [];
@@ -83,18 +84,37 @@ elseif cluster_pars.kmean_mode == "gdadjust"
         XX(:, n) = tmp_waveform(:);
     end
     % now we simply do the K-means on our adjusted waveforms
-    origassignments = DoKMeans(XX', cluster_pars.num_waveforms);
+    orig_assignments = DoKMeans(XX', cluster_pars.num_waveforms);
 end
-origcentroids = GetCentroids(X, origassignments);
+orig_centroids = GetCentroids(X, orig_assignments);
+
+% Now, we want to re-align the snippets, for each centroid, to maximally
+% match the centroid. We will recompute the mean as well.
+%%@ we'll run this a few times
+adj_centroids = orig_centroids;
+adj_peak_idx = peak_idx;
+for n=1:3
+    [X, XProj, PCs, adj_centroids, adj_peak_idx] = ...
+        AdjustSnippetsToCentroid(whitened_data, X, adj_peak_idx, adj_centroids, ...
+                                 orig_assignments, nchan, cluster_pars);
+end
+
+% Now at this point, the spike times need not be monotonic - they may have
+% shifted slightly. So we will re-sort.
+[adj_peak_idx, sort_ind] = sort(adj_peak_idx);
+X = X(:, sort_ind);
+XProj = XProj(sort_ind, :);
+orig_assignments = orig_assignments(sort_ind);
 
 % Put them in a canonical order (according to largest 2norm)
-[centroids, clperm] = OrderWaveformsByNorm(origcentroids);
+[centroids, clperm] = OrderWaveformsByNorm(adj_centroids);
 
 % Now permute the assignments. Note that we need the *inverse* permutation
 % for this, so that, for instance, all assignments formerly pointing to label 1
 % now point to whichever new position label 1 moved to, *not* whichever new
 % label is now in position 1!
-assignments = PermuteAssignments(origassignments, clperm, 'inverse');
+assignments = PermuteAssignments(orig_assignments, clperm, 'inverse');
+
 
 init_waveforms = ...
     waveformMat2Cell(centroids, waveform_len, nchan, ...
@@ -102,4 +122,4 @@ init_waveforms = ...
 
 % For later comparisons, also compute spike times corresponding to the segments
 % assigned to each cluster:
-spike_time_array_cl = GetSpikeTimesFromAssignments(peak_idx, assignments);
+spike_time_array_cl = GetSpikeTimeCellArrayFromVectors(adj_peak_idx, assignments);

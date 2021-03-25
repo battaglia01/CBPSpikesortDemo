@@ -1,7 +1,11 @@
 % This function splits a clusters into one or more sub-clusters by
 % re-clustering on only those snippets assigned to the cluster.
-function SplitCluster(waveform_ind, num_new_waveforms)
+function SplitCluster(waveform_ind, num_new_waveforms, do_plot)
 global CBPdata params CBPInternals
+
+if nargin < 3
+    do_plot = true;
+end
 
 % Check to make sure we're only splitting one cluster
 assert(length(waveform_ind) == 1, ...
@@ -49,14 +53,14 @@ CBPdata.clustering.init_waveforms = ...
 
 % For later comparisons, also compute spike times corresponding to the segments
 % assigned to each cluster:
-CBPdata.clustering.spike_time_array_cl = GetSpikeTimesFromAssignments( ...
+CBPdata.clustering.spike_time_array_cl = GetSpikeTimeCellArrayFromVectors( ...
     CBPdata.clustering.segment_centers, CBPdata.clustering.assignments);
 
 % reset number of passes
 CBPdata.CBP.num_passes = 0;
 
 % Lastly, clear stale tabs and replot:
-if (params.plotting.calibration_mode)
+if params.plotting.calibration_mode && do_plot
     clusteringstage = GetStageFromName('InitializeWaveform');
     ClearStaleTabs(clusteringstage.next);
     InitializeWaveformPlot;

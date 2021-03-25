@@ -38,8 +38,8 @@ function ParseRawDataFile(filename)
     raw = UnserializeRawDataFromFile(datname, datatype, numchannels);
     
     % now add everything to CBPdata
-    CBPdata.rawdata.data = raw;
-    CBPdata.rawdata.dt = 1/samplerate;
+    CBPdata.raw_data.data = raw;
+    CBPdata.raw_data.dt = 1/samplerate;
     CBPdata.nchan = numchannels;
     CBPdata.nsamples = size(raw,2);
 end 

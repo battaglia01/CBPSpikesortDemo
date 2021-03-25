@@ -20,8 +20,9 @@ function InitializeWaveformPlot(command)
     global CBPdata params CBPInternals;
 
     if nargin == 1 & isequal(command, 'disable')
-        DeleteCalibrationTab('Initial Waveforms, Clusters');
+        DeleteCalibrationTab('Initial Waveforms, PCs');
         DeleteCalibrationTab('Initial Waveforms, Shapes');
+        DeleteCalibrationTab('Initial Waveforms, Cheat');
         DeleteCalibrationTab('Initial Waveforms, Comparison');
         return;
     end
@@ -37,8 +38,8 @@ function InitializeWaveformPlot(command)
 
     % get the cells to plot. This is whatever cells are listed as being
     % plottable in plot_cells, intersected with the total number of cells.
-    true_num_cells = params.clustering.num_waveforms;
-    plot_cells = intersect(CBPInternals.cells_to_plot, 1:true_num_cells);
+    num_all_est_cells = params.clustering.num_waveforms;
+    plot_cells = intersect(CBPInternals.cells_to_plot, 1:num_all_est_cells);
     num_plot_cells = length(plot_cells);
     CheckPlotCells(num_plot_cells);
 
@@ -75,7 +76,7 @@ function InitializeWaveformPlot(command)
 
 % -------------------------------------------------------------------------
 % Plot PCs (Tab 1)
-    t1 = CreateCalibrationTab('Initial Waveforms, Clusters', 'InitializeWaveform');
+    t1 = CreateCalibrationTab('Initial Waveforms, PCs', 'InitializeWaveform');
     cla('reset');
     hold on;
 
@@ -87,9 +88,10 @@ function InitializeWaveformPlot(command)
     XProj_cluster = CBPdata.clustering.XProj;
     cluster_assignments = CBPdata.clustering.assignments;
 
-    PlotPCA(X_cluster, XProj_cluster, cluster_assignments);
+    PlotPCA(X_cluster, XProj_cluster, cluster_assignments, ...
+            params.clustering.num_waveforms);
     title(sprintf('Clustering result (%d clusters, %d plotted)', ...
-                  true_num_cells, num_plot_cells));
+                  num_all_est_cells, num_plot_cells));
 
     % Add merge/split buttons
 
@@ -105,7 +107,7 @@ function InitializeWaveformPlot(command)
     pause(0.05);
 
     % Restore original look and feel
-    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.original_LnF);
     %%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 
 %% -------------------------------------------------------------------------
@@ -115,114 +117,46 @@ function InitializeWaveformPlot(command)
 %%@ We have two different methods to make this comparison
     t2 = CreateCalibrationTab('Initial Waveforms, Comparison', 'InitializeWaveform');
 
-    % first, get *all* plot_centroids, not just those being plotted
+    % First, get some local variables that we need.
+    % We are going to compare *all* waveform centroids - not just those being
+    % chosen as "active plot" waveforms. This matrix has each *flattened*
+    % centroid as the column vectors, so the number of columns is the
+    % number of *all* cells.
+    % We also want to dynamically recompute the number of estimated cells
+    % on-the-fly, as the user may have changed the
+    % params.clustering.num_waveforms param and simply just have refreshed
+    % the plot without recomputing...
     all_centroids = CBPdata.clustering.centroids;
-	true_num_cells = size(all_centroids, 2);
+	num_all_est_cells = size(all_centroids, 2);
 
-    % also, pad the plot_centroids with zero values between each channel, so we
-    % aren't just naively xcorring the flattened vector
-    padded_centroids = [];
-    for n=1:true_num_cells
-        tmp_centroid = all_centroids(:, n);
-        tmp_centroid = reshape(tmp_centroid, [], nchan);
-        tmp_centroid = [tmp_centroid; zeros(size(tmp_centroid))];
-        padded_centroids(:, n) = tmp_centroid(:);
-    end
-
-    % now, depending on how our param is set, we get the distance matrix
-    % using one of three methods
-    ip = zeros(true_num_cells); % this is the matrix of dot products
-
+    result = MeasureCentroidSimilarity(all_centroids, nchan, ...
+                                       params.clustering.similarity_method);
+    % Now we branch on the similarity method and calculate the similarity
     if isequal(params.clustering.similarity_method, "shiftcorr")
-        % this method gets the shortest distance between all possible shifts of
-        % waveforms with one another, e.g. it gets the max value of the
-        % xcorr between them.
-        %
-        %%@ use the padded plot_centroids here so we aren't xcorring between
-        %%@channels
-        ip = zeros(true_num_cells);
-        for r=1:true_num_cells
-            for c=r:true_num_cells
-                if r == c
-                    ip(r, r) = norm(all_centroids(:, r))^2;
-                else
-                    ip(r, c) = max(xcorr(padded_centroids(:, r), padded_centroids(:, c)));
-                    ip(c, r) = max(xcorr(padded_centroids(:, r), padded_centroids(:, c)));
-                end
-            end
-        end
-
-        dist2 = ip./sqrt(repmat(diag(ip), 1, size(ip,2)) .* repmat(diag(ip)', size(ip,1), 1));
-        dist2 = dist2 - eye(length(dist2));                      % remove diagonal, which should be 1
-        dist2 = dist2 + sqrt(diag(diag(ip))/size(all_centroids, 1)); % add waveform RMS
-        result = dist2;
         titlestr = "Maximum reflective correlation coefficients for all possible waveform time shifts" + newline + ...
                    "(Diagonal is RMS-scaled 2-norm)";
         flipmap = false; % lighter values are *higher* correlation coefficients, which are worse
     elseif isequal(params.clustering.similarity_method, "shiftdist")
-        % this method gets the shortest distance between all possible shifts of
-        % waveforms with one another, e.g. it gets the max value of the
-        % xcorr between them.
-        ip = zeros(true_num_cells);
-        for r=1:true_num_cells
-            for c=r:true_num_cells
-                if r == c
-                    ip(r, r) = norm(padded_centroids(:, r))^2;
-                else
-                    ip(r, c) = max(xcorr(padded_centroids(:, r), padded_centroids(:, c)));
-                    ip(c, r) = max(xcorr(padded_centroids(:, r), padded_centroids(:, c)));
-                end
-            end
-        end
-
-        dist2 = repmat(diag(ip), 1, size(ip,2)) ...
-        - 2*ip ...
-        + repmat(diag(ip)', size(ip,1), 1) ...
-        + diag(diag(ip));
-        result = sqrt(dist2/size(all_centroids,1));
         titlestr = "Minimum RMS distances between all possible waveform time shifts" + newline + ...
                    "(Diagonal is RMS-scaled 2-norm)";
         flipmap = true; % lighter values are shorter distances, which are worse
-    elseif isequal(params.clustering.similarity_method, "magspectrum")
-        % this method gets the distance between magnitude spectra,
-        % which is shift-invariant.
-
-        % padding the plot_centroids pre-fft prevents time-aliasing
-        m_centroids = abs(fft(padded_centroids))/sqrt(size(padded_centroids,1));
-        ip = m_centroids'*m_centroids;
-
-        dist2 = repmat(diag(ip), 1, size(ip,2)) ...
-                - 2*ip ...
-                + repmat(diag(ip)', size(ip,1), 1) ...
-                + diag(diag(ip));
-        result = sqrt(dist2/size(all_centroids,1));
+    elseif isequal(params.clustering.similarity_method, "magspectrumcorr")
+        titlestr = "Reflective correlation coefficients for magnitude spectra" + newline + ...
+                   "(Diagonal is RMS-scaled 2-norm)";
+        flipmap = false; % lighter values are *higher* correlation coefficients, which are worse
+    elseif isequal(params.clustering.similarity_method, "magspectrumshift")
         titlestr = "RMS distances between magnitude spectra" + newline + ...
                    "(Diagonal is RMS-scaled 2-norm)";
         flipmap = true; % lighter values are shorter distances, which are worse
     elseif isequal(params.clustering.similarity_method, "simple")
-        % this method simply takes the distance between two waveforms
-        % without any time-shifting compensation. This method may not
-        % realize when two waveforms are time-shifted versions of one
-        % another.
-        ip = all_centroids' * all_centroids;
-
-        %%@ the formula below is simply:
-        %%@    ||a-b||^2 = <a-b, a-b> = <a,a> - 2<a,b> + <b,b>
-        %%@ this makes the diagonal zero, so we then change the diagonal back
-        %%@ to <a,a>, and then scale everything so we have an RMS
-        %%@ note that the norm of the magnitude spectrum is the same as the
-        %%@ norm of the original waveform
-        dist2 = repmat(diag(ip), 1, size(ip,2)) ...
-                - 2*ip ...
-                + repmat(diag(ip)', size(ip,1), 1) ...
-                + diag(diag(ip));
-        result = sqrt(dist2/size(all_centroids,1));
         titlestr = "Simple, non-time-shifted RMS distances between waveforms" + newline + ...
                    "(Diagonal is RMS-scaled 2-norm)";
         flipmap = true; % lighter values are shorter distances, which are worse
     end
 
-    % now display and plot. Make there be no diagonal for the imagesc
+    % Now display and plot visually. We're going to both plot a colorful
+    % representation of the value, as well as the numeric value in text.
+    % For the diagonal, we just set the background color to black.
     fprintf(titlestr + ": \n");
     disp(result);
     if ~flipmap
@@ -234,8 +168,7 @@ function InitializeWaveformPlot(command)
         result_no_diag = result_no_diag + ...
             diag(repmat(max(result_no_diag, [], 'all'), 1, length(result)));
     end
-    imagesc(result_no_diag);
-
+    imageax = imagesc(result_no_diag);
     % set axes, colormap, labels etc
     axis equal;
     axis tight;
@@ -243,8 +176,11 @@ function InitializeWaveformPlot(command)
     ylabel('Waveform ID');
     title(titlestr);
 
-    % add colorbar, which should be mostly gray but switch to red for the
-    % worst offenders
+    % Now we also add the colorbar, which should be mostly gray - but
+    % switch to red for the worst offenders!
+    % If "flipmat" is set, that means that we went with a similarity method
+    % in which lower scores are worse (e.g. "distance" between waveform
+    % centroids)
     tmpmap = gray;
     % the "mask" turns higher values red
     mask = linspace(1, 0, floor(length(gray))/2)';
@@ -262,9 +198,19 @@ function InitializeWaveformPlot(command)
         set(gca, 'CLim', [0 nanmax(result_no_diag, [], 'all')]);
     end
 
-    % add text
-    for x=1:true_num_cells
-        for y=1:true_num_cells
+    % Now plot the text. We also need to set the font size - to do this, we
+    % will get the size of the axes and divide by the number of clusters to
+    % get the size of each box, and then set the font size accordingly.
+    %
+    % MATLAB doesn't give us a way to get the size of *only* the image
+    % portion - only the entire axes, title, etc - so we will just estimate.
+    % Turns out if we take the axis width and multiply by 0.4 (in
+    % "normalized" units), we seem to get a decent font size that scales
+    % well with the number of clusters, window size, etc.
+    ax_size = get(gca, 'Position');
+    box_size = ax_size(3)/num_all_est_cells * 0.375;
+    for x=1:num_all_est_cells
+        for y=1:num_all_est_cells
             if x == y
                 textcolor = [1.0 1.0 0.0];
             else
@@ -273,12 +219,42 @@ function InitializeWaveformPlot(command)
             text(x, y, num2str(result(x, y), '%5.3f'), ...
               'HorizontalAlignment', 'center', ...
               'Color', textcolor, ...
-              'FontWeight', 'bold');
+              'FontWeight', 'bold', ...
+              'FontUnits', 'normalized', ...
+              'FontSize', box_size);
         end
     end
 
     adjustbutton = popupmenu(t2, menu_params{:});
 
+
+%% -------------------------------------------------------------------------
+% If we're in "cheat mode," plot the comparison of the current waveforms to
+% ground truth
+    if params.ground_truth.cheat_mode
+        t_cheat = CreateCalibrationTab('Initial Waveforms, Cheat', ...
+                                       'InitializeWaveform');
+        total_spikes_true = length(CBPdata.ground_truth.true_spike_times);
+        total_spikes_cl = length(cell2mat(CBPdata.clustering.spike_time_array_cl));
+        
+        total_tp_combined_cl = sum(CBPdata.clustering.cheat_mode.total_true_positives_cl);
+        total_fp_combined_cl = sum(CBPdata.clustering.cheat_mode.total_false_positives_cl);
+        total_misses_combined_cl = sum(CBPdata.clustering.cheat_mode.total_misses_cl);
+ 
+        num_true = length(unique(CBPdata.ground_truth.true_spike_class));
+        num_est_cl = length(CBPdata.clustering.init_waveforms);
+        PlotGroundTruthAssignmentMatrix(CBPdata.clustering.cheat_mode.tp_mtx_cl, ...
+                                        CBPdata.clustering.cheat_mode.fp_mtx_cl, ...
+                                        CBPdata.clustering.cheat_mode.miss_mtx_cl, ...
+                                        num_true, num_est_cl, ...
+                                        total_tp_combined_cl, ...
+                                        total_fp_combined_cl, ...
+                                        total_misses_combined_cl, ...
+                                        total_spikes_cl, total_spikes_true, ...
+                                        CBPdata.clustering.cheat_mode.best_ordering_cl, ...
+                                        params.ground_truth.balanced, 'Clustering');        
+    end
+    
 %% -------------------------------------------------------------------------
 % Plot the time-domain snippets (Tab 3)
     t3 = CreateCalibrationTab('Initial Waveforms, Shapes', 'InitializeWaveform');
@@ -318,7 +294,7 @@ function InitializeWaveformPlot(command)
 
         % MATLAB bugfix - by setting the fontsize of the under_panel axes like this
         % in advance, multiplot panel knows to reserve enough space
-        set(gca, 'FontSize', 12);
+        set(gca, 'FontSize', 18);
 
         % do plots
         for m=1:nchan
@@ -349,16 +325,15 @@ function InitializeWaveformPlot(command)
         multiplot(plots);
 
         % set plot attributes
-        multiplotdummyfunc(@set, 'FontSize', 12);   % font for title and labels
-        multiplotsubfunc(@set, 'FontSize', 10);     % font for subplot axes
+        %multiplotdummyfunc(@set, 'FontSize', 12);   % font for title and labels
+        %multiplotsubfunc(@set, 'FontSize', 10);     % font for subplot axes
         multiplotxlabel('Time (ms)');
         multiplotylabel("Cell " + c);
         n_spikes = nnz(assignments == c);
         SNR = rms(plot_centroids(:,n));                  % note that standard deviation is 1
         stdev = rms(rms(X(:, assignments == c) - plot_centroids(:, c)));
         multiplottitle(sprintf('%d spikes, SNR=%.1f, \x3C3_{RMS}=%.1f', ...
-                               n_spikes, SNR, stdev), ...
-                       'FontSize', 10);
+                               n_spikes, SNR, stdev));
 
         % Due to MATLAB subplot(...) display bug, when we try to switch
         % subplots below, it overwrites the original. As a workaround,
@@ -397,7 +372,7 @@ function mergeCallback(varargin)
                         'separated by space:'], ...
                         'Merge Clusters');
 
-    if ~isempty(dlgtext)
+    if ~isempty(dlgtext) && ~isempty(dlgtext{1})
             to_merge = dlgtext{1};
             to_merge = strrep(to_merge,',',' ');    %just in case they put commas
             to_merge = strsplit(strtrim(to_merge), ' ');
@@ -412,12 +387,12 @@ function splitCallback(varargin)
 
     dlgtext = inputdlg(['Enter cluster to split (1-' num2str(params.clustering.num_waveforms) '):'], ...
                         'Split Clusters');
-    if isempty(dlgtext)
+    if isempty(dlgtext) && ~isempty(dlgtext{1})
         return;
     end
 
     dlgtext2 = inputdlg('Enter number of clusters to split into:', 'Split Clusters');
-    if isempty(dlgtext2)
+    if isempty(dlgtext2) && ~isempty(dlgtext2{1})
         return;
     end
 
@@ -438,7 +413,7 @@ function reassessCallback(varargin)
                         'separated by space:'], ...
                         'Reassess Clusters');
 
-    if ~isempty(dlgtext)
+    if ~isempty(dlgtext) && ~isempty(dlgtext{1})
         to_reassess = dlgtext{1};
         to_reassess = strrep(to_reassess,',',' ');    %just in case they put commas
         to_reassess = strsplit(strtrim(to_reassess), ' ');
@@ -459,7 +434,7 @@ function addCallback(varargin)
                         'Enter number of new clusters to add:'], ...
                         'Add Clusters');
 
-    if ~isempty(dlgtext)
+    if ~isempty(dlgtext) && ~isempty(dlgtext{1})
         to_add = dlgtext{1};
         to_add = strrep(to_add,',',' ');    %just in case they put commas
         to_add = strsplit(strtrim(to_add), ' ');
@@ -478,7 +453,7 @@ function removeCallback(varargin)
                         'Enter cluster IDs to remove:'], ...
                         'Remove Clusters');
 
-    if ~isempty(dlgtext)
+    if ~isempty(dlgtext) && ~isempty(dlgtext{1})
         to_remove = dlgtext{1};
         to_remove = strrep(to_remove,',',' ');    %just in case they put commas
         to_remove = strsplit(strtrim(to_remove), ' ');

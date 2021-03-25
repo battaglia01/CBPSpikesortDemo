@@ -18,9 +18,9 @@ function CBPStageList
         fprintf(['\n  * ' currname]);
 
         %write arrows to indicate current/next stage
-        if CBPInternals.mostrecentstage.stagenum == n
+        if CBPInternals.most_recent_stage.stagenum == n
             fprintf(['\t<' repmat('-',1,displen-4*floor((length(currname)/4))-1) '  You just finished here']);
-        elseif isequal(char(CBPInternals.mostrecentstage.nextfun), currname)
+        elseif isequal(char(CBPInternals.most_recent_stage.nextfun), currname)
             fprintf(['\t<' repmat('=',1,displen-4*floor((length(currname)/4))-1) '  This stage is next']);
         end
     end

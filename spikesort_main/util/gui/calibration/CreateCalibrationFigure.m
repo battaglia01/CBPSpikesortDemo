@@ -40,7 +40,7 @@ function h = CreateCalibrationFigure
     %%@ Since MATLAB is deprecating java, try a different way to enable/disable
     %%@ tabgroup
     setappdata(tg, "Enabled", true);
-    javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    javax.swing.UIManager.setLookAndFeel(CBPInternals.original_LnF);
 
     % Store handle to this in figure's appdata so we don't need to look
     % every time
@@ -61,25 +61,31 @@ function h = CreateCalibrationFigure
     pause(0.05);
 
     % Restore original look and feel
-    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.originalLnF);
+    %%@ javax.swing.UIManager.setLookAndFeel(CBPInternals.original_LnF);
     %%@ ^^ NOTE: Metal no longer works on Mac R2019, so not necessary
 end
 
-
-
 % Taken from MATLAB's example documentation
-function ConfirmCloseCalibrationFigure(src,callbackdata)
-% Close request function 
-% to display a question dialog box 
-   selection = questdlg("Are you sure you want to close the calibration " + ...
-                        "window? If you haven't saved, you will lose " + ...
-                        "your results.", ...
-                        'Close Request Function', ...
-                        'Yes', 'No', 'No'); 
-   switch selection 
-      case 'Yes'
-         delete(gcf)
-      case 'No'
-      return 
-   end
+function ConfirmCloseCalibrationFigure(src, callbackdata)
+    global CBPInternals;
+    % This is used in CBPBegin, where we don't ask the user for
+    % confirmation if we've already deleted everything and are just trying
+    % to close the window
+    if isfield(CBPInternals, "skip_close_confirmation") ...
+      && CBPInternals.skip_close_confirmation
+        delete(gcf);
+        return;
+    end
+	% Close request function  to display a question dialog box 
+    selection = questdlg("Are you sure you want to close the calibration " + ...
+                         "window? If you haven't saved, you will lose " + ...
+                         "your results.", ...
+                         'Close Request Function', ...
+                         'Yes', 'No', 'No'); 
+    switch selection 
+       case 'Yes'
+          delete(gcf)
+       case 'No'
+       return 
+    end
 end

@@ -3,8 +3,12 @@
 % can be helpful if one of the clusters seems to be noise, or interfered
 % with by the other waveforms.
 
-function ReassessClusters(waveform_inds)
+function ReassessClusters(waveform_inds, do_plot)
 global CBPdata params CBPInternals;
+
+if nargin < 2
+    do_plot = true;
+end
 
 CL = CBPdata.clustering;
 
@@ -85,7 +89,7 @@ CL.X = X;
 
 % do spike_time_array_cl
 CL.spike_time_array_cl = ...
-    GetSpikeTimesFromAssignments(CL.segment_centers, CL.assignments);
+    GetSpikeTimeCellArrayFromVectors(CL.segment_centers, CL.assignments);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -96,7 +100,7 @@ CBPdata.clustering = CL;
 CBPdata.CBP.num_passes = 0;
 
 % Lastly, clear stale tabs and replot:
-if (params.plotting.calibration_mode)
+if params.plotting.calibration_mode && do_plot
     clusteringstage = GetStageFromName('InitializeWaveform');
     ClearStaleTabs(clusteringstage.next);
     InitializeWaveformPlot;

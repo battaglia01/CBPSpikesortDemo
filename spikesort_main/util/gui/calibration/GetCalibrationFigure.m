@@ -17,6 +17,6 @@ function h = GetCalibrationFigure
 
 % ================================================================
 % Update titlebar in the event a filename is present
-    if isfield(CBPdata,'experimentname')
-        set(h,'Name', [CBPdata.experimentname ' - Calibration']);
+    if isfield(CBPdata,'experiment_name')
+        set(h,'Name', [CBPdata.experiment_name ' - Calibration']);
     end

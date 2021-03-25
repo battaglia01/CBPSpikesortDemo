@@ -37,6 +37,7 @@ end
 % Number of times to try with random initialization
 num_reps = 25;
 
+%% ==== KMEANS
 % Use default K-means settings for now.
 distance_mode = 'sqEuclidean';
 start_mode = 'sample'; % centroid initialization = random sample
@@ -50,4 +51,25 @@ assignments = kmeans(Xproj, nwaveforms,...
     'Start', start_mode, ...
     'EmptyAction', empty_mode, ...
     'Options', opts);
-fprintf('Done.\n');
+
+%% ==== KMEDOIDS
+% distance_mode = @shiftinvdist;
+% start_mode = 'sample'; % centroid initialization = random sample
+% empty_mode = 'error'; % throw error when clusters are empty
+% opts = statset('MaxIter', 1e3);
+% 
+% assignments = kmedoids(Xproj, nwaveforms,...
+%     'Replicates', num_reps, ...
+%     'Distance', distance_mode, ...
+%     'Start', start_mode, ...
+%     'Options', opts);
+% fprintf('Done.\n');
+
+
+function D2 = shiftinvdist(XI,XJ)  
+% disp("size(XI): [" + num2str(size(XI)) + "], size(XJ): [" + num2str(size(XJ)) + "]");
+% D2 = sum((XI-XJ).^2, 2);
+% num_vecs = size(XJ, 1);
+xcorr_m = flipud(xcorr2(XI, XJ));
+% xcorr_m = real(ifft(fft(fliplr([XI zeros(size(XI))])) .* fft([XJ zeros(size(XJ))], [], 2), [], 2));
+D2 = sum(XI.^2) + sum(XJ.^2, 2) - 2*max(xcorr_m, [], 2);

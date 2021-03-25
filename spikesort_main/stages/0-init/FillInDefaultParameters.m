@@ -15,6 +15,8 @@ setparamifndef('params.plotting.calibration_figure','441418467');
 setparamifndef('params.plotting.params_figure','441418468');
 % magic number for cell info window
 setparamifndef('params.plotting.cell_info_figure','441418469');
+% max number of waveforms to plot
+setparamifndef('params.plotting.max_num_cells','100');
 % initial zoom level for scroll
 setparamifndef('params.plotting.zoomlevel','1');
 % initial xpos for scroll
@@ -103,7 +105,8 @@ setparamifndef('params.clustering.downsample_after_align','true');
 %            centroid : center the sample corresponding to the first moment
 %            median : center the sample in which the sum of all samples
 %                     left and right of it are equal
-setparamifndef('params.clustering.alignment_mode','''peak''');
+%            none : just use the raw snippet with no alignment
+setparamifndef('params.clustering.alignment_mode','''centroid''');
 %
 % averaging mode for multichannel data in the clustering stage:
 % if we have multiple channels, we need to mix them to a single channel to
@@ -127,15 +130,21 @@ setparamifndef('params.clustering.averaging_mode','''L1''');
 %            shiftdist: gets the minimum distance between all possible
 %                       time-shifts of the waveforms, giving a shift-invariant
 %                       metric.
-%            magspectrum: gets the distance of the magnitude spectra, to
-%                         give a different shift-invariant metric. experimental
+%            magspectrumcorr: gets the cosine similarity of the magnitude spectra, to
+%                             give a different shift-invariant metric.
+%                             *experimental*! Works well for low number of
+%                             clusters
+%            magspectrumdist: gets the distance of the magnitude spectra, to
+%                             give a different shift-invariant metric.
+%                             *experimental*! Works well for low number of
+%                             clusters
 %            simple: gets the naive distance between two waveforms with no
 %                    time-shifting compensation. May not rank two
 %                    time-shifted versions of the same waveform as being
 %                    close to one another
 setparamifndef('params.clustering.similarity_method', '''shiftcorr''');
 %
-% the `kmean_mode` parameter  REdetermines what, exactly, we are taking the kmeans
+% the `kmean_mode` parameter determines what, exactly, we are taking the kmeans
 % of. The settings are as follows:
 %           temporal: assign snippets to clusters based on taking k-means of
 %                     the raw waveform snippets, - the standard in clustering
@@ -151,7 +160,21 @@ setparamifndef('params.clustering.similarity_method', '''shiftcorr''');
 %                     of clusters, as there are simply too many false positives
 %                     as the number increases, even with artificially
 %                     orthogonalized clusters.
+%         geomdt2fft: Take the second geometric derivative in the frequency
+%                     domain, and use that to normalize.
 setparamifndef('params.clustering.kmean_mode', '''temporal''')
+%
+% The `overcluster_factor` parameter determines if we first take more
+% clusters than we think we need, then successively "merge" pairs of
+% centroids that are the closest to one another, until we get the original
+% number.
+%
+% The default is for this to be set to '1', which means no overclustering.
+% If the value is set to '2', we instead do an initial cluster to 2x as
+% many clusters as is specified in params.clustering.num_waveforms, then
+% successively merge N of them until we have the right amount.
+setparamifndef('params.clustering.overcluster_factor', '1')
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % PARTITION (sub-selection of CBP)
@@ -251,6 +274,21 @@ setparamifndef('params.amplitude.spike_location_slack','30');
 setparamifndef('params.amplitude.maxplotsbeforescroll','4');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Ground Truth stage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Do we want a "balanced" mapping from estimated to ground truth, in which
+% there are no double assignments, and any extra estimated or extra ground
+% truth are "unassigned"?
+% Options are "true" or "false", in which case we allow multiple
+% assignments (either multiple est per true or multiple true per est, but
+% not both)
+setparamifndef('params.ground_truth.balanced', 'false');
+% If "cheat mode" is on, there are periodically some extra tabs displayed
+% in "Calibration mode" to show how the estimated waveforms synchronize
+% with ground truth (if available), even prior to the ground truth phase.
+setparamifndef('params.ground_truth.cheat_mode', 'false');
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
@@ -258,7 +296,7 @@ setparamifndef('params.amplitude.maxplotsbeforescroll','4');
 
 % Now we just put the parameter fields in the correct order
 names = {'plotting', 'general', 'filtering', 'whitening', 'clustering', ...
-         'partition', 'cbp', 'cbp_outer', 'amplitude'};
+         'partition', 'cbp', 'cbp_outer', 'amplitude', 'ground_truth'};
 params = orderfields(params, names);
 
 end

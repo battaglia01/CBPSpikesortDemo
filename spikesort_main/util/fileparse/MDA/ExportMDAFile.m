@@ -20,8 +20,8 @@ function ExportMDAFile(filename)
     fileprefix = dir + "/" + name;
     
     % Save raw data
-    if isfield(CBPdata, "rawdata")
-        writedata(fileprefix + "_raw.mda", CBPdata.rawdata);
+    if isfield(CBPdata, "raw_data")
+        writedata(fileprefix + "_raw.mda", CBPdata.raw_data);
     end
     if isfield(CBPdata, "filtering")
         writedata(fileprefix + "_filt.mda", CBPdata.filtering);
@@ -31,7 +31,7 @@ function ExportMDAFile(filename)
     end
 end
 
-% this writes the data given a filename and dataobj (e.g. CBPdata.rawdata
+% this writes the data given a filename and dataobj (e.g. CBPdata.raw_data
 % or CBPdata.filtering or etc)
 function writedata(filename, dataobj)
     % open file

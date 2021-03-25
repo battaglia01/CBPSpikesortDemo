@@ -33,11 +33,11 @@ function h = CreateCalibrationStatus
                                 'Units', 'normalized', ...
                                 'Position', [0.5 0 0.25 1], ...
                                 'Callback', @(varargin) CBPReview);
-                            
+
     RegisterTag(repeatbutton);
     RegisterTag(nextbutton);
     RegisterTag(reviewbutton);
-    
+
     % Note - due to MATLAB bug, if we set the component as Visible=off
     % during uicontrol creation, it will have the wrong look and feel
     % when we turn it back on. So we set it after
@@ -58,11 +58,14 @@ function h = CreateCalibrationStatus
                       {'Label', 'Export...', ...
                        'Callback', @(varargin) menuchoice('export')}, ...
                       {'Label', 'Change Parameters...', ...
-                       'Callback', @(varargin) menuchoice('params')}});
+                       'Callback', @(varargin) menuchoice('params')}, ...
+                      {'Label', 'Refresh Current Plot...', ...
+                       'Callback', @(varargin) menuchoice('refresh')}});
     RegisterTag(optionbutton);
 end
 
 function menuchoice(choice)
+    global CBPInternals;
     switch choice
         case 'newsession'
             CBPBegin;    % Note this is the "initial" CBP script
@@ -70,6 +73,15 @@ function menuchoice(choice)
             ExportFileDialog;
         case 'params'
             GetParamsFigure;
+        case 'refresh'
+            DisableAllCalibrationTabs;
+            DisableCalibrationStatus;
+            stageobj = CBPInternals.curr_selected_tab_stage;
+            set(GetCalibrationFigure, "WindowStyle", "modal");
+            stageobj.plotfun();
+            set(GetCalibrationFigure, "WindowStyle", "normal");
+            EnableCalibrationStatus;
+            EnableAllCalibrationTabs;
         otherwise
             error('INTERNAL ERROR: invalid menu choice');
     end

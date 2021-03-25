@@ -16,7 +16,7 @@ function CreateSimulatedSpikeRecording
     end
     % This makes it so that the user isn't notified again about there being
     % too many channels in InitializeSession
-    CBPInternals.skipchannelmessage = true;
+    CBPInternals.skip_channel_message = true;
 
     % get number of neuron spike shapes
     while true
@@ -112,7 +112,7 @@ function CreateSimulatedSpikeRecording
     % results
     [ortho_waveforms, ~] = qr(ortho_waveforms, 0);
     % the orthogonalizing individual channels approach is below for
-    % reference
+    % reference - doesn't seem to work as well
 %     for n=1:nchan
 %         start_ind = (n-1)*waveform_len + 1;
 %         end_ind = start_ind + waveform_len - 1;
@@ -170,15 +170,15 @@ function CreateSimulatedSpikeRecording
 
     % initialize CBPdata and put into ground_truth object
     CBPdata = [];
-    CBPdata.experimentname = "Simulated Demo Data, "+nchan+" channels, " + ...
+    CBPdata.experiment_name = "Simulated Demo Data, "+nchan+" channels, " + ...
                              nspikes+" spike waveforms";
-    CBPdata.rawdata = [];
-    CBPdata.rawdata.data = [];
-    CBPdata.rawdata.dt = 1/fs;
-    CBPdata.groundtruth = [];
-    CBPdata.groundtruth.true_spike_times = combined_spike_time_array(1,:);
-    CBPdata.groundtruth.true_spike_class = combined_spike_time_array(2,:);
-    CBPdata.groundtruth.true_spike_waveforms = new_waveforms;
+    CBPdata.raw_data = [];
+    CBPdata.raw_data.data = [];
+    CBPdata.raw_data.dt = 1/fs;
+    CBPdata.ground_truth = [];
+    CBPdata.ground_truth.true_spike_times = combined_spike_time_array(1,:);
+    CBPdata.ground_truth.true_spike_class = combined_spike_time_array(2,:);
+    CBPdata.ground_truth.true_spike_waveforms = new_waveforms;
 
 
     % create trace
@@ -200,7 +200,7 @@ function CreateSimulatedSpikeRecording
 
 
     % add to CBPdata object
-    CBPdata.rawdata.data = colmix;
+    CBPdata.raw_data.data = colmix;
 
 
     % set default parameters
